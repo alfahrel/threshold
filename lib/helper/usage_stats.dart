@@ -17,6 +17,18 @@ class UsageStatsHelper {
     await _channel.invokeMethod('requestPermission');
   }
 
+  static Future<List<String>> getIgnoredPackages() async {
+    try {
+      final List<dynamic> result = await _channel.invokeMethod(
+        'getIgnoredPackages',
+      );
+      return result.map((e) => e.toString()).toList();
+    } catch (e) {
+      print('Error getting ignored packages: $e');
+      return [];
+    }
+  }
+
   static Future<bool> hasAccessibilityPermission() async {
     try {
       final bool result = await _channel.invokeMethod(

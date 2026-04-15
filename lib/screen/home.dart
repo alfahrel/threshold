@@ -20,7 +20,6 @@ class UsageStatsHome extends StatefulWidget {
 
 class _UsageStatsHomeState extends State<UsageStatsHome>
     with WidgetsBindingObserver {
-
   DateTime _selectedDate = DateTime.now();
   DateTime? _earliestDate;
   DateTime? _currentDate;
@@ -40,13 +39,13 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
 
   static const int _minUsageTime = 180000;
 
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _checkAllPermissions();
     _loadAppTimers();
+    _loadIgnoredPackages();
   }
 
   @override
@@ -62,6 +61,10 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
     }
   }
 
+  Future<void> _loadIgnoredPackages() async {
+    final ignored = await UsageStatsHelper.getIgnoredPackages();
+    setState(() => _ignoredPackages = Set<String>.from(ignored));
+  }
 
   Future<void> _checkAllPermissions() async {
     final usageStats = await UsageStatsHelper.hasPermission();
@@ -89,7 +92,10 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
   Future<void> _continuePermissionFlow() async {
     await _checkAllPermissions();
     if (_isRequestingPermissions) {
-      if (!_hasUsageStats || !_hasAccessibility || !_hasOverlay || !_hasDeviceAdmin) {
+      if (!_hasUsageStats ||
+          !_hasAccessibility ||
+          !_hasOverlay ||
+          !_hasDeviceAdmin) {
         await _requestAllPermissions();
       } else {
         _isRequestingPermissions = false;
@@ -127,21 +133,24 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
     );
   }
 
-
   Future<void> _loadUsageStats() async {
     setState(() => _isLoading = true);
     try {
       final stats = await UsageStatsHelper.getStatsByDate(_selectedDate);
-      final filtered = stats
-          .where((s) =>
-              s.totalTime >= _minUsageTime &&
-              !_ignoredPackages.contains(s.packageName))
-          .toList()
-        ..sort((a, b) => b.totalTime.compareTo(a.totalTime));
+      final filtered =
+          stats
+              .where(
+                (s) =>
+                    s.totalTime >= _minUsageTime &&
+                    !_ignoredPackages.contains(s.packageName),
+              )
+              .toList()
+            ..sort((a, b) => b.totalTime.compareTo(a.totalTime));
 
       for (final stat in filtered) {
-        _appInfoCache[stat.packageName] ??=
-            await AppInfoCache.getAppInfo(stat.packageName);
+        _appInfoCache[stat.packageName] ??= await AppInfoCache.getAppInfo(
+          stat.packageName,
+        );
       }
 
       setState(() {
@@ -171,7 +180,6 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
   Future<void> _syncIgnoredPackages() async {
     await UsageStatsHelper.setIgnoredPackages(_ignoredPackages.toList());
   }
-
 
   void _navigateToBreakdown(AppUsageStat stat) {
     Navigator.push(
@@ -207,7 +215,6 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
       await _loadUsageStats();
     }
   }
-
 
   void _showMenu() {
     final theme = Theme.of(context);
@@ -352,15 +359,19 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
                       ),
                     ),
                     const SizedBox(height: 24),
-                    Text('Threshold',
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        )),
+                    Text(
+                      'Threshold',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    Text('Version 1.0.0',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        )),
+                    Text(
+                      'Version 1.0.0',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     const Text(
                       'A comprehensive screen time management app that helps you understand and control your digital habits.',
@@ -369,25 +380,33 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer
-                            .withOpacity(0.3),
+                        color: theme.colorScheme.primaryContainer.withOpacity(
+                          0.3,
+                        ),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.lock_outline,
-                              size: 20, color: theme.colorScheme.primary),
+                          Icon(
+                            Icons.lock_outline,
+                            size: 20,
+                            color: theme.colorScheme.primary,
+                          ),
                           const SizedBox(width: 12),
                           const Expanded(
-                            child: Text('All data stays on your device',
-                                style: TextStyle(fontSize: 13)),
+                            child: Text(
+                              'All data stays on your device',
+                              style: TextStyle(fontSize: 13),
+                            ),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text('© 2026 Threshold\nLicensed under GPL v3.0',
-                        style: TextStyle(fontSize: 12)),
+                    const Text(
+                      '© 2026 Threshold\nLicensed under GPL v3.0',
+                      style: TextStyle(fontSize: 12),
+                    ),
                   ],
                 ),
               ),
@@ -479,33 +498,30 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
           ),
         ),
         SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final stat = _stats[index];
-              return AppUsageItem(
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final stat = _stats[index];
+            return AppUsageItem(
+              stat: stat,
+              appInfo: _appInfoCache[stat.packageName],
+              hasTimer: _appTimers.containsKey(stat.packageName),
+              timerLimit: _appTimers[stat.packageName],
+              onTap: () => _navigateToBreakdown(stat),
+              onLongPress: () => showAppOptionsSheet(
+                context,
                 stat: stat,
                 appInfo: _appInfoCache[stat.packageName],
                 hasTimer: _appTimers.containsKey(stat.packageName),
                 timerLimit: _appTimers[stat.packageName],
-                onTap: () => _navigateToBreakdown(stat),
-                onLongPress: () => showAppOptionsSheet(
-                  context,
-                  stat: stat,
-                  appInfo: _appInfoCache[stat.packageName],
-                  hasTimer: _appTimers.containsKey(stat.packageName),
-                  timerLimit: _appTimers[stat.packageName],
-                  ignoredPackages: _ignoredPackages,
-                  onTimersChanged: _loadAppTimers,
-                  onAppIgnored: (updated) async {
-                    setState(() => _ignoredPackages = updated);
-                    await _syncIgnoredPackages();
-                    await _loadUsageStats();
-                  },
-                ),
-              );
-            },
-            childCount: _stats.length,
-          ),
+                ignoredPackages: _ignoredPackages,
+                onTimersChanged: _loadAppTimers,
+                onAppIgnored: (updated) async {
+                  setState(() => _ignoredPackages = updated);
+                  await _syncIgnoredPackages();
+                  await _loadUsageStats();
+                },
+              ),
+            );
+          }, childCount: _stats.length),
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 100)),
       ],
@@ -519,22 +535,24 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.security,
-                size: 80, color: Theme.of(context).colorScheme.primary),
+            Icon(
+              Icons.security,
+              size: 80,
+              color: Theme.of(context).colorScheme.primary,
+            ),
             const SizedBox(height: 24),
             Text(
               'Permissions Required',
-              style: Theme.of(context)
-                  .textTheme
-                  .headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             Text(
               'Please grant all required permissions to use this app',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
@@ -543,8 +561,10 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
               icon: const Icon(Icons.settings),
               label: const Text('Grant Permissions'),
               style: FilledButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
               ),
             ),
           ],
@@ -558,18 +578,22 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.inbox_outlined,
-              size: 80,
-              color: Theme.of(context).colorScheme.onSurfaceVariant),
+          Icon(
+            Icons.inbox_outlined,
+            size: 80,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(height: 16),
-          Text('No usage data available',
-              style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            'No usage data available',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           const SizedBox(height: 8),
           Text(
             'Try selecting a different date',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -596,8 +620,11 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
           children: [
             Row(
               children: [
-                Icon(Icons.warning_amber_rounded,
-                    color: theme.colorScheme.onErrorContainer, size: 28),
+                Icon(
+                  Icons.warning_amber_rounded,
+                  color: theme.colorScheme.onErrorContainer,
+                  size: 28,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -611,21 +638,29 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
               ],
             ),
             const SizedBox(height: 16),
-            ...missing.map((perm) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      Icon(perm['icon'] as IconData,
-                          size: 18,
-                          color: theme.colorScheme.onErrorContainer
-                              .withOpacity(0.8)),
-                      const SizedBox(width: 12),
-                      Text(perm['name'] as String,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onErrorContainer)),
-                    ],
-                  ),
-                )),
+            ...missing.map(
+              (perm) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      perm['icon'] as IconData,
+                      size: 18,
+                      color: theme.colorScheme.onErrorContainer.withOpacity(
+                        0.8,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      perm['name'] as String,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onErrorContainer,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
@@ -649,11 +684,15 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
                   _requestAllPermissions();
                 },
               ),
-              icon: Icon(Icons.help_outline,
-                  size: 18, color: theme.colorScheme.onErrorContainer),
-              label: Text('Need Help?',
-                  style:
-                      TextStyle(color: theme.colorScheme.onErrorContainer)),
+              icon: Icon(
+                Icons.help_outline,
+                size: 18,
+                color: theme.colorScheme.onErrorContainer,
+              ),
+              label: Text(
+                'Need Help?',
+                style: TextStyle(color: theme.colorScheme.onErrorContainer),
+              ),
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: theme.colorScheme.onErrorContainer),
                 minimumSize: const Size(double.infinity, 36),

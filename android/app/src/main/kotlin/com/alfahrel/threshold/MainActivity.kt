@@ -78,6 +78,13 @@ class MainActivity: FlutterActivity() {
                         result.error("INVALID_ARGUMENT", "packages cannot be null", null)
                     }
                 }
+                
+                "getIgnoredPackages" -> {
+                    val prefs = getSharedPreferences("usage_stats_prefs", Context.MODE_PRIVATE)
+                    val packages = prefs.getStringSet("ignored_packages", setOf()) ?: setOf()
+                    result.success(packages.toList())
+                }
+                
                 "setAppTimer" -> {
                     val packageName = call.argument<String>("packageName")
                     val limitMinutes = call.argument<Int>("limitMinutes")

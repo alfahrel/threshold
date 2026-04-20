@@ -1,7 +1,5 @@
-import 'dart:ui';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:threshold/helper/app_info_cache.dart';
 import 'package:threshold/helper/time_tools.dart';
@@ -58,13 +56,15 @@ class _AppUsageBreakdownScreenState extends State<AppUsageBreakdownScreen> {
     }
   }
 
+  String get _appName =>
+      _appInfo?['appName'] as String? ??
+      widget.stat.packageName.split('.').last;
+
+  // ── Timer bottom sheet ─────────────────────────────────────────────────────
+
   void _showTimerBottomSheet() {
     final theme = Theme.of(context);
     int selectedMinutes = widget.timerLimit ?? 30;
-
-    final appName =
-        _appInfo?['appName'] as String? ??
-        widget.stat.packageName.split('.').last;
 
     showModalBottomSheet(
       context: context,
@@ -79,106 +79,179 @@ class _AppUsageBreakdownScreenState extends State<AppUsageBreakdownScreen> {
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Center(
-                child: Container(
-                  width: 32,
-                  height: 4,
-                  margin: const EdgeInsets.only(top: 12, bottom: 20),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.4),
-                    borderRadius: BorderRadius.circular(2),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Drag handle ──
+                Center(
+                  child: Container(
+                    width: 32,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.onSurfaceVariant.withOpacity(
+                        0.4,
+                      ),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Set Timer for $appName',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'Limit usage to $selectedMinutes minutes per day',
-                      style: theme.textTheme.bodyLarge,
-                    ),
-                    const SizedBox(height: 16),
-                    Slider(
-                      value: selectedMinutes.toDouble(),
-                      min: 5,
-                      max: 300,
-                      divisions: 59,
-                      label: '$selectedMinutes min',
-                      onChanged: (value) {
-                        setSheetState(() {
-                          selectedMinutes = value.toInt();
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    if (_usageToday != null)
-                      Text(
-                        'Used today: ${TimeTools.formatTime(_usageToday!)}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    const SizedBox(height: 24),
-                    Row(
+
+                Text(
+                  'Set Timer for $_appName',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // ── Limit display card ──
+                Material(
+                  color: theme.colorScheme.secondaryContainer.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
                       children: [
-                        if (widget.hasTimer)
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () {
-                                widget.onTimerSet(null);
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Timer removed'),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              },
-                              child: const Text('Remove'),
-                            ),
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        if (widget.hasTimer) const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: () {
-                              widget.onTimerSet(selectedMinutes);
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Timer set to $selectedMinutes minutes',
-                                  ),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            },
-                            child: const Text('Set Timer'),
+                          child: Icon(
+                            Icons.timer_outlined,
+                            color: theme.colorScheme.primary,
+                            size: 20,
                           ),
                         ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Daily Limit',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '$selectedMinutes minutes',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_usageToday != null) ...[
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                'Used today',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                TimeTools.formatTime(_usageToday!),
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: 24),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // ── Slider ──
+                Slider(
+                  value: selectedMinutes.toDouble(),
+                  min: 5,
+                  max: 300,
+                  divisions: 59,
+                  label: '$selectedMinutes min',
+                  onChanged: (value) =>
+                      setSheetState(() => selectedMinutes = value.toInt()),
+                ),
+                const SizedBox(height: 24),
+
+                // ── Actions ──
+                Row(
+                  children: [
+                    if (widget.hasTimer) ...[
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            widget.onTimerSet(null);
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Timer removed'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text('Remove'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                    Expanded(
+                      flex: 2,
+                      child: FilledButton(
+                        onPressed: () {
+                          widget.onTimerSet(selectedMinutes);
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Timer set to $selectedMinutes minutes',
+                              ),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('Set Timer'),
+                      ),
+                    ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -187,100 +260,125 @@ class _AppUsageBreakdownScreenState extends State<AppUsageBreakdownScreen> {
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return [
-            SliverAppBar(
-              expandedHeight: 120.0,
-              floating: false,
-              pinned: true,
-              flexibleSpace: FlexibleSpaceBar(
-                title: Text(
-                  '',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          SliverAppBar(
+            expandedHeight: 120.0,
+            floating: false,
+            pinned: true,
+            flexibleSpace: FlexibleSpaceBar(
+              title: Text(
+                "",
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              titlePadding: const EdgeInsets.only(left: 56, bottom: 16),
+              expandedTitleScale: 1.5,
+            ),
+            backgroundColor: theme.colorScheme.surface,
+            foregroundColor: theme.colorScheme.onSurface,
+            actions: [
+              IconButton(
+                icon: Icon(
+                  widget.hasTimer ? Icons.timer : Icons.timer_outlined,
+                  color: widget.hasTimer ? theme.colorScheme.primary : null,
+                ),
+                onPressed: _showTimerBottomSheet,
+                tooltip: 'Set Timer',
+              ),
+            ],
+          ),
+        ],
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          children: [
+            // ── App header card ──
+            _buildAppHeader(theme),
+            const SizedBox(height: 16),
+
+            // ── Stat row ──
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    theme,
+                    icon: Icons.access_time_rounded,
+                    iconColor: theme.colorScheme.primary,
+                    label: 'Screen Time',
+                    value: TimeTools.formatTime(widget.stat.totalTime),
+                    valueColor: theme.colorScheme.primary,
                   ),
                 ),
-                titlePadding: const EdgeInsets.only(left: 56, bottom: 16),
-                expandedTitleScale: 1.5,
-              ),
-              backgroundColor: theme.colorScheme.surface,
-              foregroundColor: theme.colorScheme.onSurface,
-              actions: [
-                IconButton(
-                  icon: Icon(
-                    widget.hasTimer ? Icons.timer : Icons.timer_outlined,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildStatCard(
+                    theme,
+                    icon: Icons.refresh_rounded,
+                    iconColor: theme.colorScheme.primary,
+                    label: 'Sessions',
+                    value: '${widget.stat.sessionCount}',
+                    valueColor: theme.colorScheme.primary,
                   ),
-                  onPressed: _showTimerBottomSheet,
-                  tooltip: 'Set Timer',
                 ),
               ],
             ),
-          ];
-        },
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildAppHeader(),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      'Screen Time',
-                      TimeTools.formatTime(widget.stat.totalTime),
-                      Icons.access_time,
-                      theme.colorScheme.primaryContainer,
-                    ),
-                  ),
-                  const SizedBox(width: 0),
-                  Expanded(
-                    child: _buildStatCard(
-                      'Sessions',
-                      '${widget.stat.sessionCount}',
-                      Icons.refresh,
-                      theme.colorScheme.secondaryContainer,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 0),
-              _buildLineChart(),
-              const SizedBox(height: 100),
+
+            // ── Timer status card (if active) ──
+            if (widget.hasTimer && widget.timerLimit != null) ...[
+              const SizedBox(height: 16),
+              _buildTimerStatusCard(theme),
             ],
-          ),
+
+            // ── Hourly chart ──
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 0, 10),
+              child: Text(
+                'Hourly Breakdown',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            _buildLineChart(theme),
+
+            const SizedBox(height: 100),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildAppHeader() {
-    final theme = Theme.of(context);
-    return Card(
+  // ── App header ─────────────────────────────────────────────────────────────
+
+  Widget _buildAppHeader(ThemeData theme) {
+    return Material(
+      color: theme.colorScheme.secondaryContainer.withOpacity(0.5),
+      borderRadius: BorderRadius.circular(20),
       child: Padding(
-        padding: const EdgeInsets.all(0),
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            _buildAppIcon(),
-            const SizedBox(width: 16),
+            _buildAppIcon(theme),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _appInfo?['appName'] ??
-                        widget.stat.packageName.split('.').last,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    _appName,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     widget.stat.packageName,
-                    style: theme.textTheme.bodySmall?.copyWith(
+                    style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -291,85 +389,84 @@ class _AppUsageBreakdownScreenState extends State<AppUsageBreakdownScreen> {
     );
   }
 
-  Widget _buildAppIcon() {
-    final theme = Theme.of(context);
-
-    if (_isLoadingAppInfo || _appInfo == null) {
-      return Container(
-        width: 64,
-        height: 64,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Icon(
-          Icons.apps,
-          size: 32,
-          color: theme.colorScheme.onPrimaryContainer,
-        ),
-      );
-    }
-
-    final iconBytes = _appInfo!['icon'] as List<int>?;
-    if (iconBytes != null && iconBytes.isNotEmpty) {
-      return Container(
-        width: 64,
-        height: 64,
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Image.memory(
-            Uint8List.fromList(iconBytes),
-            fit: BoxFit.cover,
-            gaplessPlayback: true,
+  Widget _buildAppIcon(ThemeData theme) {
+    if (!_isLoadingAppInfo) {
+      final iconBytes = _appInfo?['icon'] as List<int>?;
+      if (iconBytes != null && iconBytes.isNotEmpty) {
+        return Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(14)),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: Image.memory(
+              Uint8List.fromList(iconBytes),
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+            ),
           ),
-        ),
-      );
+        );
+      }
     }
 
     return Container(
-      width: 64,
-      height: 64,
+      width: 48,
+      height: 48,
       decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(16),
+        color: theme.colorScheme.primary.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(14),
       ),
-      child: Icon(
-        Icons.apps,
-        size: 32,
-        color: theme.colorScheme.onPrimaryContainer,
-      ),
+      child: Icon(Icons.apps, size: 24, color: theme.colorScheme.primary),
     );
   }
 
+  // ── Stat card ──────────────────────────────────────────────────────────────
+
   Widget _buildStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color bgColor,
-  ) {
-    final theme = Theme.of(context);
-    return Card(
-      color: bgColor,
+    ThemeData theme, {
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+    required Color valueColor,
+  }) {
+    return Material(
+      color: theme.colorScheme.secondaryContainer.withOpacity(0.5),
+      borderRadius: BorderRadius.circular(20),
       child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.all(16),
+        child: Row(
           children: [
-            Icon(icon, color: theme.colorScheme.onSecondaryContainer, size: 28),
-            const SizedBox(height: 12),
-            Text(
-              value,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.onSecondaryContainer,
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
               ),
+              child: Icon(icon, color: iconColor, size: 20),
             ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSecondaryContainer.withOpacity(0.7),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: valueColor,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
           ],
@@ -378,137 +475,161 @@ class _AppUsageBreakdownScreenState extends State<AppUsageBreakdownScreen> {
     );
   }
 
-  Widget _buildLineChart() {
-    final theme = Theme.of(context);
-    final hourlyUsage = widget.stat.getHourlyBreakdown();
+  // ── Timer status card ──────────────────────────────────────────────────────
 
-    final spots = hourlyUsage.entries
-        .map((entry) => FlSpot(entry.key.toDouble(), entry.value.toDouble()))
-        .toList();
+  Widget _buildTimerStatusCard(ThemeData theme) {
+    final limitMs = widget.timerLimit! * 60 * 1000;
+    final usedMs = _usageToday ?? widget.stat.totalTime;
+    final progress = (usedMs / limitMs).clamp(0.0, 1.0);
+    final isOverLimit = usedMs >= limitMs;
+    final statusColor = isOverLimit ? theme.colorScheme.error : theme.colorScheme.primary;
 
-    final maxValue = hourlyUsage.values.isEmpty
-        ? 60.0
-        : hourlyUsage.values.reduce((a, b) => a > b ? a : b).toDouble();
-    final maxY = maxValue * 1.3;
-    final minY = -maxValue * 0.1;
-
-    return Card(
+    return Material(
+      color: theme.colorScheme.secondaryContainer.withOpacity(0.5),
+      borderRadius: BorderRadius.circular(20),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              height: 250,
-              child: LineChart(
-                LineChartData(
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    horizontalInterval: maxValue > 60 ? (maxValue / 5) : 15,
-                    getDrawingHorizontalLine: (value) {
-                      return FlLine(
-                        color: theme.colorScheme.outlineVariant.withOpacity(
-                          0.3,
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    isOverLimit ? Icons.timer_off : Icons.timer,
+                    color: statusColor,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isOverLimit ? 'Limit Reached' : 'Daily Timer',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
-                        strokeWidth: 1,
-                      );
-                    },
-                  ),
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: false,
-                        reservedSize: 50,
-                        interval: maxValue > 60 ? (maxValue / 5) : 15,
-                        getTitlesWidget: (value, meta) {
-                          if (value < 0) return const Text('');
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: Text(
-                              '${value.toInt()}m',
-                              style: theme.textTheme.bodySmall,
-                              textAlign: TextAlign.right,
-                            ),
-                          );
-                        },
                       ),
-                    ),
-                    rightTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 32,
-                        interval: 4,
-                        getTitlesWidget: (value, meta) {
-                          final hour = value.toInt();
-                          if (hour % 4 == 0) {
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Text(
-                                TimeTools.formatHour(hour),
-                                style: theme.textTheme.bodySmall,
-                              ),
-                            );
-                          }
-                          return const Text('');
-                        },
-                      ),
-                    ),
-                  ),
-                  borderData: FlBorderData(show: false),
-                  minX: 0,
-                  maxX: 23,
-                  minY: minY,
-                  maxY: maxY,
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: spots,
-                      isCurved: true,
-                      curveSmoothness: 0.2,
-                      color: theme.colorScheme.primary,
-                      barWidth: 3,
-                      isStrokeCapRound: true,
-                      dotData: FlDotData(show: false),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        color: theme.colorScheme.primary.withOpacity(0.1),
-                        cutOffY: 0,
-                        applyCutOffY: true,
-                      ),
-                    ),
-                  ],
-                  lineTouchData: LineTouchData(
-                    touchTooltipData: LineTouchTooltipData(
-                      getTooltipItems: (touchedSpots) {
-                        return touchedSpots.map((spot) {
-                          return LineTooltipItem(
-                            spot.y.toStringAsFixed(1),
-                            TextStyle(color: Colors.white),
-                          );
-                        }).toList();
-                      },
-                    ),
-                  ),
-                  extraLinesData: ExtraLinesData(
-                    horizontalLines: [
-                      HorizontalLine(
-                        y: 0,
-                        color: theme.colorScheme.outline.withOpacity(0.3),
-                        strokeWidth: 1,
-                        dashArray: [5, 5],
+                      const SizedBox(height: 2),
+                      Text(
+                        '${widget.timerLimit} min limit',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: statusColor,
+                        ),
                       ),
                     ],
                   ),
                 ),
+                if (_usageToday != null)
+                  Text(
+                    TimeTools.formatTime(_usageToday!),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 5,
+                backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                color: statusColor,
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLineChart(ThemeData theme) {
+    final hourlyUsage = widget.stat.getHourlyBreakdown();
+
+    final blocks = <Map<String, dynamic>>[];
+    for (int start = 0; start < 24; start += 4) {
+      final totalSec = List.generate(
+        4,
+        (i) => start + i,
+      ).fold(0, (sum, h) => sum + (hourlyUsage[h] ?? 0));
+      blocks.add({
+        'label': TimeTools.formatHour(start),
+        'value': (totalSec / 60).ceilToDouble(), // seconds → minutes
+      });
+    }
+
+    final maxBlock = blocks.fold<double>(
+      0,
+      (m, b) => (b['value'] as double) > m ? b['value'] as double : m,
+    );
+
+    return Material(
+      color: theme.colorScheme.secondaryContainer.withOpacity(0.5),
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: SizedBox(
+          height: 180,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: blocks.map((block) {
+              final value = block['value'] as double;
+              final barH = maxBlock > 0
+                  ? (value / maxBlock * 120).clamp(4.0, 120.0)
+                  : 4.0;
+              final isEmpty = value == 0;
+
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (!isEmpty)
+                        Text(
+                          '${value.toInt()}m',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontSize: 9,
+                          ),
+                        ),
+                      const SizedBox(height: 4),
+                      Container(
+                        height: barH,
+                        decoration: BoxDecoration(
+                          color: isEmpty
+                              ? theme.colorScheme.outlineVariant.withOpacity(
+                                  0.3,
+                                )
+                              : theme.colorScheme.primary.withOpacity(0.7),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        block['label'] as String,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
         ),
       ),
     );

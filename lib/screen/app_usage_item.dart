@@ -28,9 +28,10 @@ class AppUsageItem extends StatelessWidget {
     final appName = appInfo?['appName'] as String?;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
       child: Card(
         margin: EdgeInsets.zero,
+        color: theme.colorScheme.secondaryContainer.withOpacity(0.5),
         child: InkWell(
           onTap: onTap,
           onLongPress: onLongPress,

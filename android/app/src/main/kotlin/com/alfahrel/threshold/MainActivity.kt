@@ -190,7 +190,7 @@ class MainActivity: FlutterActivity() {
 
             val launcherPackage = getDefaultLauncherPackage()
 
-            val MIN_USAGE_TIME = 180000L
+            val MIN_USAGE_TIME = 0L
 
             val stats = usageStatsManager.queryUsageStats(
                 UsageStatsManager.INTERVAL_DAILY,

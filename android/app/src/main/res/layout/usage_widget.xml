@@ -5,16 +5,16 @@
   android:layout_width="match_parent"
   android:layout_height="match_parent"
   android:orientation="vertical"
-  android:padding="12dp"
-  android:background="@drawable/widget_background_transparent"
+  android:padding="16dp"
+  android:background="@drawable/widget_background_material"
 >
-  <!-- Header with title and refresh button -->
+  <!-- Header -->
   <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:layout_marginBottom="18dp"
+    android:layout_marginBottom="12dp"
   >
     <TextView
       android:id="@+id/widget_title"
@@ -22,35 +22,36 @@
       android:layout_height="wrap_content"
       android:layout_weight="1"
       android:text="Screen Time"
-      android:textSize="14sp"
+      android:textSize="13sp"
       android:textStyle="bold"
-      android:textColor="#FFFFFF"
+      android:textColor="@color/widget_on_surface_variant"
+      android:letterSpacing="0.05"
     />
-
     <ImageButton
       android:id="@+id/refresh_button"
-      android:layout_width="24dp"
-      android:layout_height="24dp"
+      android:layout_width="20dp"
+      android:layout_height="20dp"
       android:src="@drawable/ic_refresh"
       android:background="?android:attr/selectableItemBackgroundBorderless"
       android:contentDescription="Refresh"
       android:scaleType="fitCenter"
+      android:tint="@color/widget_on_surface_variant"
     />
   </LinearLayout>
 
-  <!-- Total Screen Time - Compact -->
+  <!-- Total time -->
   <TextView
     android:id="@+id/total_time"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:text="0h 0m"
-    android:textSize="28sp"
+    android:textSize="32sp"
     android:textStyle="bold"
-    android:textColor="#FFFFFF"
-    android:layout_marginBottom="24dp"
+    android:textColor="@color/widget_on_surface"
+    android:layout_marginBottom="16dp"
+    android:letterSpacing="-0.02"
   />
 
-  <!-- Top 3 Apps - Compact List -->
   <!-- App 1 -->
   <LinearLayout
     android:id="@+id/app1_container"
@@ -58,16 +59,15 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingTop="6dp"
-    android:paddingBottom="6dp"
+    android:paddingTop="5dp"
+    android:paddingBottom="5dp"
   >
     <ImageView
       android:id="@+id/app1_icon"
-      android:layout_width="28dp"
-      android:layout_height="28dp"
+      android:layout_width="26dp"
+      android:layout_height="26dp"
       android:src="@android:drawable/sym_def_app_icon"
     />
-
     <TextView
       android:id="@+id/app1_name"
       android:layout_width="0dp"
@@ -76,18 +76,17 @@
       android:layout_marginStart="10dp"
       android:text="App 1"
       android:textSize="13sp"
-      android:textColor="#FFFFFF"
+      android:textColor="@color/widget_on_surface"
       android:maxLines="1"
       android:ellipsize="end"
     />
-
     <TextView
       android:id="@+id/app1_time"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:text="0m"
       android:textSize="12sp"
-      android:textColor="#B3FFFFFF"
+      android:textColor="@color/widget_on_surface_variant"
       android:layout_marginStart="8dp"
     />
   </LinearLayout>
@@ -99,16 +98,15 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingTop="6dp"
-    android:paddingBottom="6dp"
+    android:paddingTop="5dp"
+    android:paddingBottom="5dp"
   >
     <ImageView
       android:id="@+id/app2_icon"
-      android:layout_width="28dp"
-      android:layout_height="28dp"
+      android:layout_width="26dp"
+      android:layout_height="26dp"
       android:src="@android:drawable/sym_def_app_icon"
     />
-
     <TextView
       android:id="@+id/app2_name"
       android:layout_width="0dp"
@@ -117,18 +115,17 @@
       android:layout_marginStart="10dp"
       android:text="App 2"
       android:textSize="13sp"
-      android:textColor="#FFFFFF"
+      android:textColor="@color/widget_on_surface"
       android:maxLines="1"
       android:ellipsize="end"
     />
-
     <TextView
       android:id="@+id/app2_time"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:text="0m"
       android:textSize="12sp"
-      android:textColor="#B3FFFFFF"
+      android:textColor="@color/widget_on_surface_variant"
       android:layout_marginStart="8dp"
     />
   </LinearLayout>
@@ -140,16 +137,15 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingTop="6dp"
-    android:paddingBottom="6dp"
+    android:paddingTop="5dp"
+    android:paddingBottom="5dp"
   >
     <ImageView
       android:id="@+id/app3_icon"
-      android:layout_width="28dp"
-      android:layout_height="28dp"
+      android:layout_width="26dp"
+      android:layout_height="26dp"
       android:src="@android:drawable/sym_def_app_icon"
     />
-
     <TextView
       android:id="@+id/app3_name"
       android:layout_width="0dp"
@@ -158,18 +154,56 @@
       android:layout_marginStart="10dp"
       android:text="App 3"
       android:textSize="13sp"
-      android:textColor="#FFFFFF"
+      android:textColor="@color/widget_on_surface"
       android:maxLines="1"
       android:ellipsize="end"
     />
-
     <TextView
       android:id="@+id/app3_time"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:text="0m"
       android:textSize="12sp"
-      android:textColor="#B3FFFFFF"
+      android:textColor="@color/widget_on_surface_variant"
+      android:layout_marginStart="8dp"
+    />
+  </LinearLayout>
+  
+  <!-- App 4 -->
+  <LinearLayout
+    android:id="@+id/app4_container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingTop="5dp"
+    android:paddingBottom="5dp"
+  >
+    <ImageView
+      android:id="@+id/app4_icon"
+      android:layout_width="26dp"
+      android:layout_height="26dp"
+      android:src="@android:drawable/sym_def_app_icon"
+    />
+    <TextView
+      android:id="@+id/app4_name"
+      android:layout_width="0dp"
+      android:layout_height="wrap_content"
+      android:layout_weight="1"
+      android:layout_marginStart="10dp"
+      android:text="App 4"
+      android:textSize="13sp"
+      android:textColor="@color/widget_on_surface"
+      android:maxLines="1"
+      android:ellipsize="end"
+    />
+    <TextView
+      android:id="@+id/app4_time"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:text="0m"
+      android:textSize="12sp"
+      android:textColor="@color/widget_on_surface_variant"
       android:layout_marginStart="8dp"
     />
   </LinearLayout>

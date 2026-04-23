@@ -8,7 +8,6 @@ import 'package:threshold/screen/app_usage_breakdown.dart';
 import 'package:threshold/screen/app_options_sheet.dart';
 import 'package:threshold/screen/app_usage_item.dart';
 import 'package:threshold/screen/permission_sheet.dart';
-import 'package:threshold/screen/usage_summary_card.dart';
 import 'package:threshold/screen/ignored_apps.dart';
 
 class UsageStatsHome extends StatefulWidget {
@@ -37,7 +36,7 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
   bool _hasDeviceAdmin = false;
   bool _isRequestingPermissions = false;
 
-  static const int _minUsageTime = 180000;
+  static const int _minUsageTime = 0;
 
   @override
   void initState() {
@@ -383,7 +382,7 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
                     showLicensePage(
                       context: context,
                       applicationName: 'Threshold',
-                      applicationVersion: '1.1.0',
+                      applicationVersion: '1.2.0',
                       applicationLegalese: '© 2026 Threshold\nGPL v3.0 License',
                     );
                   },
@@ -487,7 +486,7 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
                                 ),
                               ),
                               Text(
-                                'Version 1.1.0',
+                                'Version 1.2.0',
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: theme.colorScheme.onSurfaceVariant,
                                 ),
@@ -652,8 +651,7 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
                       Theme.of(context),
                       label: 'Total Today',
                       value: _totalUsageTime,
-                      valueColor: Theme.of(context).colorScheme.primary,
-                      isFocused: true,
+                      valueColor: Theme.of(context).colorScheme.onSurface,
                     ),
                   ],
                 ),
@@ -704,135 +702,29 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
     required String label,
     required String value,
     required Color valueColor,
-    bool isFocused = false,
   }) {
-    return Material(
-      color: isFocused
-          ? theme.colorScheme.primaryContainer
-          : theme.colorScheme.secondaryContainer.withOpacity(0.0),
-      borderRadius: BorderRadius.circular(isFocused ? 20 : 50),
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style:
-                        (isFocused
-                                ? theme.textTheme.labelMedium
-                                : theme.textTheme.labelSmall)
-                            ?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    value,
-                    style:
-                        (isFocused
-                                ? theme.textTheme.headlineLarge
-                                : theme.textTheme.titleSmall)
-                            ?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: valueColor,
-                            ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              letterSpacing: 0.5,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: theme.textTheme.displayMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: valueColor,
+            ),
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildDailyChart(ThemeData theme) {
-    if (_stats.isEmpty) return const SizedBox.shrink();
-
-    final topStats = _stats.take(6).toList();
-    final maxTime = topStats.first.totalTime.toDouble();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 0, 0, 10),
-          child: Text(
-            'Top Apps',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        Material(
-          color: theme.colorScheme.secondaryContainer.withOpacity(0.5),
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: SizedBox(
-              height: 160,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: topStats.map((stat) {
-                  final barH = maxTime > 0
-                      ? (stat.totalTime / maxTime * 120).clamp(4.0, 120.0)
-                      : 4.0;
-                  final appInfo = _appInfoCache[stat.packageName];
-                  final appName =
-                      appInfo?['appName'] as String? ??
-                      stat.packageName.split('.').last;
-                  final shortName = appName.length > 6
-                      ? appName.substring(0, 6)
-                      : appName;
-
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 3),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Text(
-                            TimeTools.formatTime(stat.totalTime),
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                              fontSize: 9,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            height: barH,
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary.withOpacity(0.7),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            shortName,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 9,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 

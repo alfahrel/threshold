@@ -5,7 +5,7 @@
   android:layout_width="match_parent"
   android:layout_height="match_parent"
   android:padding="12dp"
-  android:background="@drawable/widget_background_transparent"
+  android:background="@drawable/widget_background_material"
 >
   <LinearLayout
     android:layout_width="match_parent"
@@ -13,7 +13,6 @@
     android:orientation="vertical"
     android:gravity="center"
   >
-    <!-- Title -->
     <TextView
       android:id="@+id/widget_title"
       android:layout_width="wrap_content"
@@ -21,11 +20,9 @@
       android:text="Screen Time"
       android:textSize="11sp"
       android:textStyle="bold"
-      android:textColor="#B3FFFFFF"
+      android:textColor="@color/widget_on_surface_variant"
       android:layout_marginBottom="4dp"
     />
-
-    <!-- Total Time -->
     <TextView
       android:id="@+id/total_time"
       android:layout_width="wrap_content"
@@ -33,12 +30,10 @@
       android:text="0h 0m"
       android:textSize="22sp"
       android:textStyle="bold"
-      android:textColor="#FFFFFF"
+      android:textColor="@color/widget_on_surface"
       android:gravity="center"
     />
   </LinearLayout>
-
-  <!-- Refresh Button - Top Right Corner -->
   <ImageButton
     android:id="@+id/refresh_button"
     android:layout_width="20dp"
@@ -48,5 +43,6 @@
     android:background="?android:attr/selectableItemBackgroundBorderless"
     android:contentDescription="Refresh"
     android:scaleType="fitCenter"
+    android:tint="@color/widget_on_surface_variant"
   />
 </FrameLayout>

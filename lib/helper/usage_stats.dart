@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:threshold/helper/home_widget_bridge.dart';
 import 'package:threshold/model.dart';
 
 class UsageStatsHelper {
@@ -19,13 +20,19 @@ class UsageStatsHelper {
 
   static Future<List<String>> getIgnoredPackages() async {
     try {
-      final List<dynamic> result = await _channel.invokeMethod(
-        'getIgnoredPackages',
-      );
-      return result.map((e) => e.toString()).toList();
+      final packages = await HomeWidgetBridge.loadIgnoredPackages();
+      return packages.toList();
     } catch (e) {
       print('Error getting ignored packages: $e');
       return [];
+    }
+  }
+
+  static Future<void> setIgnoredPackages(List<String> packages) async {
+    try {
+      await HomeWidgetBridge.saveIgnoredPackages(packages.toSet());
+    } catch (e) {
+      print('Error setting ignored packages: $e');
     }
   }
 
@@ -127,14 +134,6 @@ class UsageStatsHelper {
       return Map<String, dynamic>.from(result);
     } catch (e) {
       return null;
-    }
-  }
-
-  static Future<void> setIgnoredPackages(List<String> packages) async {
-    try {
-      await _channel.invokeMethod('setIgnoredPackages', {'packages': packages});
-    } catch (e) {
-      print('Error setting ignored packages: $e');
     }
   }
 

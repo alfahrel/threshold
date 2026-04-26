@@ -10,6 +10,7 @@ class AppUsageBreakdownScreen extends StatefulWidget {
   final bool hasTimer;
   final int? timerLimit;
   final Function(int?) onTimerSet;
+  final DateTime selectedDate;
 
   const AppUsageBreakdownScreen({
     Key? key,
@@ -17,6 +18,7 @@ class AppUsageBreakdownScreen extends StatefulWidget {
     this.hasTimer = false,
     this.timerLimit,
     required this.onTimerSet,
+    required this.selectedDate,
   }) : super(key: key);
 
   @override
@@ -29,11 +31,15 @@ class _AppUsageBreakdownScreenState extends State<AppUsageBreakdownScreen> {
   int? _usageToday;
   bool _isLoadingAppInfo = true;
 
+  Map<int, int> _hourlyBreakdown = {};
+  bool _isLoadingHourly = true;
+
   @override
   void initState() {
     super.initState();
     _loadAppInfo();
     _loadUsageToday();
+    _loadHourlyBreakdown();
   }
 
   Future<void> _loadAppInfo() async {
@@ -52,6 +58,36 @@ class _AppUsageBreakdownScreenState extends State<AppUsageBreakdownScreen> {
     );
     if (mounted) {
       setState(() => _usageToday = usage);
+    }
+  }
+
+  Future<void> _loadHourlyBreakdown() async {
+    final today = DateTime.now();
+    final isToday =
+        widget.selectedDate.year == today.year &&
+        widget.selectedDate.month == today.month &&
+        widget.selectedDate.day == today.day;
+
+    if (isToday) {
+      // Use accurate native event query for today
+      final breakdown = await UsageStatsHelper.getAppHourlyBreakdownToday(
+        widget.stat.packageName,
+      );
+      if (mounted) {
+        setState(() {
+          _hourlyBreakdown = breakdown;
+          _isLoadingHourly = false;
+        });
+      }
+    } else {
+      // Use session data already loaded in AppUsageStat
+      final breakdown = widget.stat.getHourlyBreakdown();
+      if (mounted) {
+        setState(() {
+          _hourlyBreakdown = breakdown;
+          _isLoadingHourly = false;
+        });
+      }
     }
   }
 
@@ -84,7 +120,6 @@ class _AppUsageBreakdownScreenState extends State<AppUsageBreakdownScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Drag handle ──
                 Center(
                   child: Container(
                     width: 32,
@@ -98,7 +133,6 @@ class _AppUsageBreakdownScreenState extends State<AppUsageBreakdownScreen> {
                     ),
                   ),
                 ),
-
                 Text(
                   'Set Timer for $_appName',
                   style: theme.textTheme.headlineSmall?.copyWith(
@@ -106,8 +140,6 @@ class _AppUsageBreakdownScreenState extends State<AppUsageBreakdownScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // ── Limit display card ──
                 Material(
                   color: theme.colorScheme.secondaryContainer.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(20),
@@ -175,8 +207,6 @@ class _AppUsageBreakdownScreenState extends State<AppUsageBreakdownScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // ── Slider ──
                 Slider(
                   value: selectedMinutes.toDouble(),
                   min: 5,
@@ -187,8 +217,6 @@ class _AppUsageBreakdownScreenState extends State<AppUsageBreakdownScreen> {
                       setSheetState(() => selectedMinutes = value.toInt()),
                 ),
                 const SizedBox(height: 24),
-
-                // ── Actions ──
                 Row(
                   children: [
                     if (widget.hasTimer) ...[
@@ -291,11 +319,8 @@ class _AppUsageBreakdownScreenState extends State<AppUsageBreakdownScreen> {
         body: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
           children: [
-            // ── App header card ──
             _buildAppHeader(theme),
             const SizedBox(height: 16),
-
-            // ── Stat row ──
             Row(
               children: [
                 Expanded(
@@ -321,31 +346,33 @@ class _AppUsageBreakdownScreenState extends State<AppUsageBreakdownScreen> {
                 ),
               ],
             ),
-
-            // ── Timer status card (if active) ──
             if (widget.hasTimer && widget.timerLimit != null) ...[
               const SizedBox(height: 16),
               _buildTimerStatusCard(theme),
             ],
-
-            // ── Hourly chart ──
             const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 0, 0, 10),
               child: Text(
-                'Hourly Breakdown',
+                _isToday ? 'Hourly Breakdown (Today)' : 'Hourly Breakdown',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ),
-            _buildLineChart(theme),
-
+            _buildScrollableBarChart(theme),
             const SizedBox(height: 100),
           ],
         ),
       ),
     );
+  }
+
+  bool get _isToday {
+    final today = DateTime.now();
+    return widget.selectedDate.year == today.year &&
+        widget.selectedDate.month == today.month &&
+        widget.selectedDate.day == today.day;
   }
 
   // ── App header ─────────────────────────────────────────────────────────────
@@ -407,7 +434,6 @@ class _AppUsageBreakdownScreenState extends State<AppUsageBreakdownScreen> {
         );
       }
     }
-
     return Container(
       width: 48,
       height: 48,
@@ -481,7 +507,9 @@ class _AppUsageBreakdownScreenState extends State<AppUsageBreakdownScreen> {
     final usedMs = _usageToday ?? widget.stat.totalTime;
     final progress = (usedMs / limitMs).clamp(0.0, 1.0);
     final isOverLimit = usedMs >= limitMs;
-    final statusColor = isOverLimit ? theme.colorScheme.error : theme.colorScheme.primary;
+    final statusColor = isOverLimit
+        ? theme.colorScheme.error
+        : theme.colorScheme.primary;
 
     return Material(
       color: theme.colorScheme.secondaryContainer.withOpacity(0.5),
@@ -552,85 +580,191 @@ class _AppUsageBreakdownScreenState extends State<AppUsageBreakdownScreen> {
     );
   }
 
-  Widget _buildLineChart(ThemeData theme) {
-    final hourlyUsage = widget.stat.getHourlyBreakdown();
+  // ── Scrollable 24-bar chart ────────────────────────────────────────────────
 
-    final blocks = <Map<String, dynamic>>[];
-    for (int start = 0; start < 24; start += 4) {
-      final totalSec = List.generate(
-        4,
-        (i) => start + i,
-      ).fold(0, (sum, h) => sum + (hourlyUsage[h] ?? 0));
-      blocks.add({
-        'label': TimeTools.formatHour(start),
-        'value': (totalSec / 60).ceilToDouble(), // seconds → minutes
-      });
+  Widget _buildScrollableBarChart(ThemeData theme) {
+    if (_isLoadingHourly) {
+      return Material(
+        color: theme.colorScheme.secondaryContainer.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(20),
+        child: const SizedBox(
+          height: 200,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
     }
 
-    final maxBlock = blocks.fold<double>(
-      0,
-      (m, b) => (b['value'] as double) > m ? b['value'] as double : m,
+    final now = DateTime.now();
+
+    // One entry per hour 0–23
+    final hourData = List.generate(
+      24,
+      (h) => _HourBar(
+        hour: h,
+        seconds: _hourlyBreakdown[h] ?? 0,
+        label: _formatHourShort(h),
+      ),
     );
+
+    final maxSec = hourData.fold<int>(
+      0,
+      (m, b) => b.seconds > m ? b.seconds : m,
+    );
+
+    const double barWidth = 36.0;
+    const double barMaxHeight = 110.0;
+    const double chartHeight = 180.0;
+
+    // For today: auto-scroll to current hour. For past dates: start at 0.
+    final initialOffset = _isToday
+        ? ((now.hour * barWidth) - barWidth * 3).clamp(0.0, double.infinity)
+        : 0.0;
 
     return Material(
       color: theme.colorScheme.secondaryContainer.withOpacity(0.5),
       borderRadius: BorderRadius.circular(20),
+      clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
         child: SizedBox(
-          height: 180,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: blocks.map((block) {
-              final value = block['value'] as double;
-              final barH = maxBlock > 0
-                  ? (value / maxBlock * 120).clamp(4.0, 120.0)
-                  : 4.0;
-              final isEmpty = value == 0;
+          height: chartHeight,
+          child: ScrollConfiguration(
+            behavior: _NoGlowScrollBehavior(),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              controller: ScrollController(initialScrollOffset: initialOffset),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: hourData.map((bar) {
+                  final barH = maxSec > 0
+                      ? (bar.seconds / maxSec * barMaxHeight).clamp(
+                          4.0,
+                          barMaxHeight,
+                        )
+                      : 4.0;
+                  final isEmpty = bar.seconds == 0;
+                  // Only highlight current hour when viewing today
+                  final isCurrent = _isToday && bar.hour == now.hour;
 
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      if (!isEmpty)
-                        Text(
-                          '${value.toInt()}m',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            fontSize: 9,
+                  final barColor = isCurrent && !isEmpty
+                      ? theme.colorScheme.primary
+                      : isEmpty
+                      ? theme.colorScheme.outlineVariant.withOpacity(0.25)
+                      : theme.colorScheme.primary.withOpacity(0.55);
+
+                  return SizedBox(
+                    width: barWidth,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        // Value label above bar (only when non-empty)
+                        SizedBox(
+                          height: 16,
+                          child: !isEmpty
+                              ? Text(
+                                  _formatSeconds(bar.seconds),
+                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    fontSize: 8,
+                                    color: isCurrent
+                                        ? theme.colorScheme.primary
+                                        : theme.colorScheme.onSurfaceVariant,
+                                    fontWeight: isCurrent
+                                        ? FontWeight.w700
+                                        : FontWeight.normal,
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                        const SizedBox(height: 3),
+
+                        // Bar itself
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 450),
+                          curve: Curves.easeOut,
+                          height: barH,
+                          width: barWidth - 10,
+                          decoration: BoxDecoration(
+                            color: barColor,
+                            borderRadius: BorderRadius.circular(5),
+                            boxShadow: isCurrent && !isEmpty
+                                ? [
+                                    BoxShadow(
+                                      color: theme.colorScheme.primary
+                                          .withOpacity(0.35),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ]
+                                : null,
                           ),
                         ),
-                      const SizedBox(height: 4),
-                      Container(
-                        height: barH,
-                        decoration: BoxDecoration(
-                          color: isEmpty
-                              ? theme.colorScheme.outlineVariant.withOpacity(
-                                  0.3,
-                                )
-                              : theme.colorScheme.primary.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(4),
+                        const SizedBox(height: 6),
+
+                        // Hour label below bar
+                        Text(
+                          bar.label,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontSize: 9,
+                            color: isCurrent
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurfaceVariant,
+                            fontWeight: isCurrent
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        block['label'] as String,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
           ),
         ),
       ),
     );
   }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  /// e.g. 0 → "12a", 7 → "7a", 12 → "12p", 15 → "3p"
+  String _formatHourShort(int hour) {
+    if (hour == 0) return '12a';
+    if (hour < 12) return '${hour}a';
+    if (hour == 12) return '12p';
+    return '${hour - 12}p';
+  }
+
+  /// Compact duration label: "45s", "12m", "1h30m"
+  String _formatSeconds(int seconds) {
+    if (seconds < 60) return '${seconds}s';
+    final mins = seconds ~/ 60;
+    if (mins < 60) return '${mins}m';
+    final hrs = mins ~/ 60;
+    final rem = mins % 60;
+    return rem > 0 ? '${hrs}h${rem}m' : '${hrs}h';
+  }
+}
+
+// ── Supporting types ──────────────────────────────────────────────────────────
+
+class _HourBar {
+  final int hour;
+  final int seconds;
+  final String label;
+  const _HourBar({
+    required this.hour,
+    required this.seconds,
+    required this.label,
+  });
+}
+
+class _NoGlowScrollBehavior extends ScrollBehavior {
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) => child;
 }

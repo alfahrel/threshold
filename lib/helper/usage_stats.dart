@@ -181,4 +181,72 @@ class UsageStatsHelper {
       return null;
     }
   }
+
+  /// Returns a map of hour (0–23) → usage in seconds for today only.
+  static Future<Map<int, int>> getAppHourlyBreakdownToday(
+    String packageName,
+  ) async {
+    try {
+      final Map<dynamic, dynamic> result = await _channel.invokeMethod(
+        'getAppHourlyBreakdownToday',
+        {'packageName': packageName},
+      );
+      return result.map(
+        (key, value) =>
+            MapEntry(int.parse(key.toString()), (value as num).toInt()),
+      );
+    } catch (e) {
+      print('Error getting hourly breakdown: $e');
+      return {};
+    }
+  }
+
+  /// Returns total usage in milliseconds for each of the last 7 days.
+  /// Map key is the start-of-day DateTime, value is total ms across all apps.
+  static Future<Map<DateTime, int>> getWeeklyStats() async {
+    final results = <DateTime, int>{};
+    final now = DateTime.now();
+    for (int i = 6; i >= 0; i--) {
+      final date = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(Duration(days: i));
+      final stats = await getStatsByDate(date);
+      final total = stats.fold<int>(0, (sum, s) => sum + s.totalTime);
+      results[date] = total;
+    }
+    return results;
+  }
+
+  /// Returns average daily usage in ms across all days that have any data,
+  /// from the earliest available timestamp up to today.
+  static Future<int> getAverageDailyUsage() async {
+    final now = DateTime.now();
+    final earliestTs = await getEarliestDataTimestamp();
+    if (earliestTs == null) return 0;
+
+    final earliestDate = DateTime.fromMillisecondsSinceEpoch(earliestTs);
+    int totalDays = 0;
+    int totalMs = 0;
+
+    DateTime cursor = DateTime(
+      earliestDate.year,
+      earliestDate.month,
+      earliestDate.day,
+    );
+    final today = DateTime(now.year, now.month, now.day);
+
+    while (!cursor.isAfter(today)) {
+      final stats = await getStatsByDate(cursor);
+      final dayTotal = stats.fold<int>(0, (sum, s) => sum + s.totalTime);
+      if (dayTotal > 0) {
+        totalMs += dayTotal;
+        totalDays++;
+      }
+      cursor = cursor.add(const Duration(days: 1));
+    }
+
+    return totalDays > 0 ? totalMs ~/ totalDays : 0;
+  }
 }

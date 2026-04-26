@@ -22,7 +22,7 @@ import java.util.*
 
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "usage_stats"
-
+    
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler {
@@ -78,13 +78,11 @@ class MainActivity: FlutterActivity() {
                         result.error("INVALID_ARGUMENT", "packages cannot be null", null)
                     }
                 }
-                
                 "getIgnoredPackages" -> {
                     val prefs = getSharedPreferences("usage_stats_prefs", Context.MODE_PRIVATE)
                     val packages = prefs.getStringSet("ignored_packages", setOf()) ?: setOf()
                     result.success(packages.toList())
                 }
-                
                 "setAppTimer" -> {
                     val packageName = call.argument<String>("packageName")
                     val limitMinutes = call.argument<Int>("limitMinutes")
@@ -110,6 +108,10 @@ class MainActivity: FlutterActivity() {
                 "getAppUsageToday" -> {
                     val packageName = call.argument<String>("packageName")
                     result.success(if (packageName != null) getAppUsageToday(packageName) else null)
+                }
+                "getAppHourlyBreakdownToday" -> {
+                    val packageName = call.argument<String>("packageName")
+                    result.success(if (packageName != null) getAppHourlyBreakdownToday(packageName) else null)
                 }
                 else -> result.notImplemented()
             }
@@ -187,10 +189,7 @@ class MainActivity: FlutterActivity() {
 
             val prefs = getSharedPreferences("usage_stats_prefs", Context.MODE_PRIVATE)
             val ignoredPackages = prefs.getStringSet("ignored_packages", setOf()) ?: setOf()
-
             val launcherPackage = getDefaultLauncherPackage()
-
-            val MIN_USAGE_TIME = 0L
 
             val stats = usageStatsManager.queryUsageStats(
                 UsageStatsManager.INTERVAL_DAILY,
@@ -198,25 +197,16 @@ class MainActivity: FlutterActivity() {
                 end
             )
 
-            if (stats == null || stats.isEmpty()) {
-                return emptyList()
-            }
+            if (stats == null || stats.isEmpty()) return emptyList()
 
             val aggregatedStats = mutableMapOf<String, MutableMap<String, Any>>()
 
             for (stat in stats) {
                 if (stat.totalTimeInForeground > 0) {
                     val packageName = stat.packageName
-
                     if (packageName in ignoredPackages ||
                         packageName == launcherPackage ||
-                        packageName == "com.alfahrel.threshold") {
-                        continue
-                    }
-
-                    if (stat.totalTimeInForeground < MIN_USAGE_TIME) {
-                        continue
-                    }
+                        packageName == "com.alfahrel.threshold") continue
 
                     if (aggregatedStats.containsKey(packageName)) {
                         val existing = aggregatedStats[packageName]!!
@@ -226,7 +216,8 @@ class MainActivity: FlutterActivity() {
                         aggregatedStats[packageName] = mutableMapOf(
                             "packageName" to packageName,
                             "totalTime" to stat.totalTimeInForeground,
-                            "startTimes" to mutableListOf<Long>()
+                            "startTimes" to mutableListOf<Long>(),
+                            "sessionDurations" to mutableListOf<Long>()
                         )
                     }
                 }
@@ -235,22 +226,49 @@ class MainActivity: FlutterActivity() {
             try {
                 val events = usageStatsManager.queryEvents(start, end)
                 val sessionStarts = mutableMapOf<String, MutableList<Long>>()
+                val sessionDurations = mutableMapOf<String, MutableList<Long>>()
+                val lastForeground = mutableMapOf<String, Long>()
 
                 while (events.hasNextEvent()) {
                     val event = android.app.usage.UsageEvents.Event()
                     events.getNextEvent(event)
 
-                    if (event.eventType == android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND) {
-                        if (!sessionStarts.containsKey(event.packageName)) {
-                            sessionStarts[event.packageName] = mutableListOf()
+                    when (event.eventType) {
+                        android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                            lastForeground[event.packageName] = event.timeStamp
+                            sessionStarts.getOrPut(event.packageName) { mutableListOf<Long>() }
+                                .add(event.timeStamp)
+                            sessionDurations.getOrPut(event.packageName) { mutableListOf<Long>() }
+                                .add(-1L)
                         }
-                        sessionStarts[event.packageName]?.add(event.timeStamp)
+                        android.app.usage.UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+                            val fgTime = lastForeground[event.packageName]
+                            if (fgTime != null) {
+                                val duration = event.timeStamp - fgTime
+                                val durations = sessionDurations[event.packageName]
+                                if (durations != null && durations.isNotEmpty()) {
+                                    durations[durations.size - 1] = duration
+                                }
+                                lastForeground.remove(event.packageName)
+                            }
+                        }
+                    }
+                }
+
+                // Handle sessions still in foreground (app currently open)
+                val now = System.currentTimeMillis()
+                for ((pkg, fgTime) in lastForeground) {
+                    val durations = sessionDurations[pkg]
+                    if (durations != null && durations.isNotEmpty()) {
+                        durations[durations.size - 1] = now - fgTime
                     }
                 }
 
                 for ((packageName, starts) in sessionStarts) {
                     if (aggregatedStats.containsKey(packageName)) {
                         aggregatedStats[packageName]!!["startTimes"] = starts
+                        aggregatedStats[packageName]!!["sessionDurations"] =
+                            sessionDurations[packageName] ?: mutableListOf<Long>()
                     }
                 }
             } catch (e: Exception) {
@@ -261,6 +279,68 @@ class MainActivity: FlutterActivity() {
 
         } catch (e: Exception) {
             return emptyList()
+        }
+    }
+
+    // Queries today's events directly to get accurate per-hour usage in seconds.
+    // This is separate from getUsageStats because queryEvents has a limited lookback
+    // window and can't reliably cover multi-day ranges like totalTime can.
+    private fun getAppHourlyBreakdownToday(packageName: String): Map<String, Long> {
+        try {
+            val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+
+            val calendar = Calendar.getInstance()
+            calendar.set(Calendar.HOUR_OF_DAY, 0)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            val start = calendar.timeInMillis
+            val end = System.currentTimeMillis()
+
+            // Initialize all 24 hours to 0
+            val hourlySeconds = mutableMapOf<String, Long>()
+            for (i in 0..23) hourlySeconds[i.toString()] = 0L
+
+            val events = usageStatsManager.queryEvents(start, end)
+            var lastForeground = -1L
+
+            while (events.hasNextEvent()) {
+                val event = android.app.usage.UsageEvents.Event()
+                events.getNextEvent(event)
+
+                if (event.packageName != packageName) continue
+
+                when (event.eventType) {
+                    android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                        lastForeground = event.timeStamp
+                    }
+                    android.app.usage.UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+                        if (lastForeground > 0) {
+                            val durationMs = event.timeStamp - lastForeground
+                            val hour = Calendar.getInstance().apply {
+                                timeInMillis = lastForeground
+                            }.get(Calendar.HOUR_OF_DAY)
+                            val key = hour.toString()
+                            hourlySeconds[key] = (hourlySeconds[key] ?: 0L) + (durationMs / 1000)
+                            lastForeground = -1L
+                        }
+                    }
+                }
+            }
+
+            // Handle currently open session
+            if (lastForeground > 0) {
+                val durationMs = end - lastForeground
+                val hour = Calendar.getInstance().apply {
+                    timeInMillis = lastForeground
+                }.get(Calendar.HOUR_OF_DAY)
+                val key = hour.toString()
+                hourlySeconds[key] = (hourlySeconds[key] ?: 0L) + (durationMs / 1000)
+            }
+
+            return hourlySeconds
+        } catch (e: Exception) {
+            return (0..23).associate { it.toString() to 0L }
         }
     }
 

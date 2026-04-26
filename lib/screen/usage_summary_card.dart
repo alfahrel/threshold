@@ -244,6 +244,7 @@ class _UsagePieChartState extends State<UsagePieChart> {
 
   void _navigateToBreakdown(BuildContext context, AppUsageStat stat) {
     final hasTimer = widget.appTimers.containsKey(stat.packageName);
+    DateTime _selectedDate = DateTime.now();
     final timerLimit = widget.appTimers[stat.packageName];
 
     Navigator.push(
@@ -252,6 +253,7 @@ class _UsagePieChartState extends State<UsagePieChart> {
         builder: (context) => AppUsageBreakdownScreen(
           stat: stat,
           hasTimer: hasTimer,
+          selectedDate: _selectedDate,
           timerLimit: timerLimit,
           onTimerSet: (limit) => widget.onTimerSet(stat.packageName, limit),
         ),

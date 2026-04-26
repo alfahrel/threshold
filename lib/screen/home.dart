@@ -28,6 +28,14 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
   Map<String, int> _appTimers = {};
   final Map<String, Map<String, dynamic>?> _appInfoCache = {};
 
+  // Weekly chart: start-of-day → total ms
+  Map<DateTime, int> _weeklyStats = {};
+  bool _isLoadingWeekly = false;
+
+  // Average daily usage in ms
+  int _averageDailyMs = 0;
+  bool _isLoadingAverage = false;
+
   bool _isLoading = false;
   bool _hasPermission = false;
   bool _hasUsageStats = false;
@@ -86,6 +94,8 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
 
     await _findDataAvailabilityRange();
     await _loadUsageStats();
+    await _loadWeeklyStats();
+    await _loadAverageDailyUsage();
   }
 
   Future<void> _continuePermissionFlow() async {
@@ -161,6 +171,32 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
     }
   }
 
+  Future<void> _loadWeeklyStats() async {
+    setState(() => _isLoadingWeekly = true);
+    try {
+      final weekly = await UsageStatsHelper.getWeeklyStats();
+      setState(() {
+        _weeklyStats = weekly;
+        _isLoadingWeekly = false;
+      });
+    } catch (_) {
+      setState(() => _isLoadingWeekly = false);
+    }
+  }
+
+  Future<void> _loadAverageDailyUsage() async {
+    setState(() => _isLoadingAverage = true);
+    try {
+      final avg = await UsageStatsHelper.getAverageDailyUsage();
+      setState(() {
+        _averageDailyMs = avg;
+        _isLoadingAverage = false;
+      });
+    } catch (_) {
+      setState(() => _isLoadingAverage = false);
+    }
+  }
+
   Future<void> _loadAppTimers() async {
     final timers = await UsageStatsHelper.getAppTimers();
     setState(() => _appTimers = timers);
@@ -186,6 +222,7 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
       MaterialPageRoute(
         builder: (context) => AppUsageBreakdownScreen(
           stat: stat,
+          selectedDate: _selectedDate,
           hasTimer: _appTimers.containsKey(stat.packageName),
           timerLimit: _appTimers[stat.packageName],
           onTimerSet: (limit) async {
@@ -215,6 +252,15 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
     }
   }
 
+  // ── Select day from weekly chart ───────────────────────────────────────────
+
+  Future<void> _selectDayFromChart(DateTime day) async {
+    final normalised = DateTime(day.year, day.month, day.day);
+    if (_isSameDay(normalised, _selectedDate)) return;
+    setState(() => _selectedDate = normalised);
+    await _loadUsageStats();
+  }
+
   // ── Menu bottom sheet ──────────────────────────────────────────────────────
 
   void _showMenu() {
@@ -233,7 +279,6 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ── Drag handle ──
                 Container(
                   width: 32,
                   height: 4,
@@ -432,7 +477,6 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Drag handle ──
                 Center(
                   child: Container(
                     width: 32,
@@ -453,7 +497,6 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
                   ),
                 ),
                 const SizedBox(height: 24),
-                // ── App identity card ──
                 Material(
                   color: theme.colorScheme.secondaryContainer.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(20),
@@ -506,7 +549,6 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
                   ),
                 ),
                 const SizedBox(height: 16),
-                // ── Privacy badge ──
                 Material(
                   color: theme.colorScheme.secondaryContainer.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(20),
@@ -577,6 +619,14 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
     return TimeTools.formatTime(ms);
   }
 
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  String _weekdayShort(int weekday) {
+    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return labels[(weekday - 1).clamp(0, 6)];
+  }
+
   // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
@@ -620,6 +670,8 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
           onRefresh: () async {
             await _checkAllPermissions();
             await _loadUsageStats();
+            await _loadWeeklyStats();
+            await _loadAverageDailyUsage();
           },
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -631,7 +683,7 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
 
   Widget _buildContent() {
     if (!_hasPermission) return _buildNoPermissionState();
-    if (_stats.isEmpty) return _buildEmptyState();
+    if (_stats.isEmpty && _weeklyStats.isEmpty) return _buildEmptyState();
 
     return CustomScrollView(
       slivers: [
@@ -645,88 +697,305 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
                   _buildMissingPermissionsCard(),
                   const SizedBox(height: 16),
                 ],
-                Column(
-                  children: [
-                    _buildStatCard(
-                      Theme.of(context),
-                      label: 'Total Today',
-                      value: _totalUsageTime,
-                      valueColor: Theme.of(context).colorScheme.onSurface,
+
+                // ── Selected day total ──
+                _buildDayTotalCard(Theme.of(context)),
+
+                const SizedBox(height: 20),
+
+                // ── Weekly chart + average ──
+                _buildWeeklySection(Theme.of(context)),
+
+                const SizedBox(height: 16),
+
+                // ── App list header ──
+                if (_stats.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Text(
+                      'Apps',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 10),
+                  ),
               ],
             ),
           ),
         ),
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate((context, index) {
-              final stat = _stats[index];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: AppUsageItem(
-                  stat: stat,
-                  appInfo: _appInfoCache[stat.packageName],
-                  hasTimer: _appTimers.containsKey(stat.packageName),
-                  timerLimit: _appTimers[stat.packageName],
-                  onTap: () => _navigateToBreakdown(stat),
-                  onLongPress: () => showAppOptionsSheet(
-                    context,
+
+        // ── App list ──
+        if (_stats.isNotEmpty)
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final stat = _stats[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: AppUsageItem(
                     stat: stat,
                     appInfo: _appInfoCache[stat.packageName],
                     hasTimer: _appTimers.containsKey(stat.packageName),
                     timerLimit: _appTimers[stat.packageName],
-                    ignoredPackages: _ignoredPackages,
-                    onTimersChanged: _loadAppTimers,
-                    onAppIgnored: (updated) async {
-                      setState(() => _ignoredPackages = updated);
-                      await _syncIgnoredPackages();
-                      await _loadUsageStats();
-                    },
+                    onTap: () => _navigateToBreakdown(stat),
+                    onLongPress: () => showAppOptionsSheet(
+                      context,
+                      stat: stat,
+                      appInfo: _appInfoCache[stat.packageName],
+                      hasTimer: _appTimers.containsKey(stat.packageName),
+                      timerLimit: _appTimers[stat.packageName],
+                      ignoredPackages: _ignoredPackages,
+                      onTimersChanged: _loadAppTimers,
+                      onAppIgnored: (updated) async {
+                        setState(() => _ignoredPackages = updated);
+                        await _syncIgnoredPackages();
+                        await _loadUsageStats();
+                      },
+                    ),
                   ),
-                ),
-              );
-            }, childCount: _stats.length),
+                );
+              }, childCount: _stats.length),
+            ),
           ),
-        ),
+
+        if (_stats.isEmpty) SliverToBoxAdapter(child: _buildEmptyDayState()),
+
         const SliverToBoxAdapter(child: SizedBox(height: 100)),
       ],
     );
   }
 
-  Widget _buildStatCard(
-    ThemeData theme, {
-    required String label,
-    required String value,
-    required Color valueColor,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: theme.textTheme.labelLarge?.copyWith(
+  // ── Day total card ─────────────────────────────────────────────────────────
+
+  Widget _buildDayTotalCard(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          TimeTools.getDateLabel(_selectedDate),
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          _stats.isEmpty ? '—' : _totalUsageTime,
+          style: theme.textTheme.displayMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Weekly section ─────────────────────────────────────────────────────────
+
+  Widget _buildWeeklySection(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header row: title + average
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              'Last 7 Days',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (_isLoadingAverage)
+              SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.5,
+                  color: theme.colorScheme.primary,
+                ),
+              )
+            else if (_averageDailyMs > 0)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'All-time daily avg',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  Text(
+                    TimeTools.formatTime(_averageDailyMs),
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+
+        // Chart card
+        Material(
+          color: theme.colorScheme.secondaryContainer.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(20),
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
+            child: _isLoadingWeekly
+                ? const SizedBox(
+                    height: 120,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : _buildWeeklyBarChart(theme),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWeeklyBarChart(ThemeData theme) {
+    if (_weeklyStats.isEmpty) {
+      return SizedBox(
+        height: 120,
+        child: Center(
+          child: Text(
+            'No data available',
+            style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
-              letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: theme.textTheme.displayMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: valueColor,
+        ),
+      );
+    }
+
+    final days = _weeklyStats.keys.toList()..sort();
+    final maxMs = _weeklyStats.values.fold<int>(0, (m, v) => v > m ? v : m);
+    const double barMaxHeight = 80.0;
+    const double itemWidth = 44.0;
+
+    return SizedBox(
+      height: 140,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: days.map((day) {
+          final ms = _weeklyStats[day] ?? 0;
+          final isSelected = _isSameDay(day, _selectedDate);
+          final isToday = _isSameDay(day, DateTime.now());
+          final isEmpty = ms == 0;
+
+          final barH = (maxMs > 0 && !isEmpty)
+              ? (ms / maxMs * barMaxHeight).clamp(4.0, barMaxHeight)
+              : 4.0;
+
+          final barColor = isSelected
+              ? theme.colorScheme.primary
+              : isEmpty
+              ? theme.colorScheme.outlineVariant.withOpacity(0.25)
+              : theme.colorScheme.primary.withOpacity(0.45);
+
+          final labelColor = isSelected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.onSurfaceVariant;
+
+          return GestureDetector(
+            onTap: () => _selectDayFromChart(day),
+            behavior: HitTestBehavior.opaque,
+            child: SizedBox(
+              width: itemWidth,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  // Duration label above bar
+                  SizedBox(
+                    height: 18,
+                    child: !isEmpty
+                        ? Text(
+                            TimeTools.formatTime(ms),
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              fontSize: 8,
+                              color: labelColor,
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.normal,
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  const SizedBox(height: 3),
+
+                  // Bar
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 350),
+                    curve: Curves.easeOut,
+                    height: barH,
+                    width: itemWidth - 12,
+                    decoration: BoxDecoration(
+                      color: barColor,
+                      borderRadius: BorderRadius.circular(6),
+                      boxShadow: isSelected && !isEmpty
+                          ? [
+                              BoxShadow(
+                                color: theme.colorScheme.primary.withOpacity(
+                                  0.35,
+                                ),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+
+                  // Weekday label
+                  Text(
+                    _weekdayShort(day.weekday),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontSize: 10,
+                      color: labelColor,
+                      fontWeight: isSelected || isToday
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                    ),
+                  ),
+
+                  // Small dot under today's column
+                  SizedBox(
+                    height: 6,
+                    child: isToday
+                        ? Center(
+                            child: Container(
+                              width: 4,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurfaceVariant
+                                          .withOpacity(0.5),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          );
+        }).toList(),
       ),
     );
   }
+
+  // ── Empty / no-permission states ───────────────────────────────────────────
 
   Widget _buildNoPermissionState() {
     final theme = Theme.of(context);
@@ -785,6 +1054,46 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
     );
   }
 
+  /// Shown when the selected day has no app data but other days do.
+  Widget _buildEmptyDayState() {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 32),
+      child: Column(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.secondaryContainer.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Icon(
+              Icons.inbox_outlined,
+              size: 30,
+              color: theme.colorScheme.onSecondaryContainer,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'No usage data for this day',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Tap a bar above to switch days',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Shown when there is absolutely no data at all.
   Widget _buildEmptyState() {
     final theme = Theme.of(context);
     return Center(
@@ -845,7 +1154,6 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header ──
             Row(
               children: [
                 Container(
@@ -887,7 +1195,6 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
               ],
             ),
             const SizedBox(height: 14),
-            // ── Permission rows ──
             ...missing.map(
               (perm) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -912,7 +1219,6 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
               ),
             ),
             const SizedBox(height: 14),
-            // ── Actions ──
             Row(
               children: [
                 Expanded(

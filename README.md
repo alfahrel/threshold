@@ -21,9 +21,9 @@ A screen time management app built with Flutter. Track app usage, set timers, an
 ## Screenshots
 
 <div style="display: flex; justify-content: space-around; gap: 10px;">
-  <img src="./screenshot/screenshot1.png" width="200">
-  <img src="./screenshot/screenshot2.png" width="200">
-  <img src="./screenshot/screenshot3.png" width="200">
+  <img src="./screenshot/ss1.png" width="200">
+  <img src="./screenshot/ss2.png" width="200">
+  <img src="./screenshot/ss3.png" width="200">
 </div>
 
 ## Tech Stack

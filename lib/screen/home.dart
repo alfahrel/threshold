@@ -28,13 +28,8 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
   Map<String, int> _appTimers = {};
   final Map<String, Map<String, dynamic>?> _appInfoCache = {};
 
-  // Weekly chart: start-of-day → total ms
   Map<DateTime, int> _weeklyStats = {};
-  bool _isLoadingWeekly = false;
-
-  // Average daily usage in ms
   int _averageDailyMs = 0;
-  bool _isLoadingAverage = false;
 
   bool _isLoading = false;
   bool _hasPermission = false;
@@ -93,9 +88,7 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
     }
 
     await _findDataAvailabilityRange();
-    await _loadUsageStats();
-    await _loadWeeklyStats();
-    await _loadAverageDailyUsage();
+    await _loadAllData();
   }
 
   Future<void> _continuePermissionFlow() async {
@@ -142,12 +135,19 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
     );
   }
 
-  Future<void> _loadUsageStats() async {
+  // ── Single unified load ────────────────────────────────────────────────────
+
+  Future<void> _loadAllData() async {
     setState(() => _isLoading = true);
     try {
-      final stats = await UsageStatsHelper.getStatsByDate(_selectedDate);
-      final filtered =
-          stats
+      final results = await Future.wait([
+        UsageStatsHelper.getStatsByDate(_selectedDate),
+        UsageStatsHelper.getWeeklyStats(),
+        UsageStatsHelper.getAverageDailyUsage(),
+      ]);
+
+      final stats =
+          (results[0] as List<AppUsageStat>)
               .where(
                 (s) =>
                     s.totalTime >= _minUsageTime &&
@@ -156,44 +156,20 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
               .toList()
             ..sort((a, b) => b.totalTime.compareTo(a.totalTime));
 
-      for (final stat in filtered) {
+      for (final stat in stats) {
         _appInfoCache[stat.packageName] ??= await AppInfoCache.getAppInfo(
           stat.packageName,
         );
       }
 
       setState(() {
-        _stats = filtered;
+        _stats = stats;
+        _weeklyStats = results[1] as Map<DateTime, int>;
+        _averageDailyMs = results[2] as int;
         _isLoading = false;
       });
     } catch (_) {
       setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _loadWeeklyStats() async {
-    setState(() => _isLoadingWeekly = true);
-    try {
-      final weekly = await UsageStatsHelper.getWeeklyStats();
-      setState(() {
-        _weeklyStats = weekly;
-        _isLoadingWeekly = false;
-      });
-    } catch (_) {
-      setState(() => _isLoadingWeekly = false);
-    }
-  }
-
-  Future<void> _loadAverageDailyUsage() async {
-    setState(() => _isLoadingAverage = true);
-    try {
-      final avg = await UsageStatsHelper.getAverageDailyUsage();
-      setState(() {
-        _averageDailyMs = avg;
-        _isLoadingAverage = false;
-      });
-    } catch (_) {
-      setState(() => _isLoadingAverage = false);
     }
   }
 
@@ -248,17 +224,15 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
     );
     if (picked != null && picked != _selectedDate) {
       setState(() => _selectedDate = picked);
-      await _loadUsageStats();
+      await _loadAllData();
     }
   }
-
-  // ── Select day from weekly chart ───────────────────────────────────────────
 
   Future<void> _selectDayFromChart(DateTime day) async {
     final normalised = DateTime(day.year, day.month, day.day);
     if (_isSameDay(normalised, _selectedDate)) return;
     setState(() => _selectedDate = normalised);
-    await _loadUsageStats();
+    await _loadAllData();
   }
 
   // ── Menu bottom sheet ──────────────────────────────────────────────────────
@@ -315,7 +289,7 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
                           onChanged: (updated) async {
                             setState(() => _ignoredPackages = updated);
                             await _syncIgnoredPackages();
-                            await _loadUsageStats();
+                            await _loadAllData();
                           },
                         ),
                       ),
@@ -669,9 +643,6 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
         body: RefreshIndicator(
           onRefresh: () async {
             await _checkAllPermissions();
-            await _loadUsageStats();
-            await _loadWeeklyStats();
-            await _loadAverageDailyUsage();
           },
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -750,7 +721,7 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
                       onAppIgnored: (updated) async {
                         setState(() => _ignoredPackages = updated);
                         await _syncIgnoredPackages();
-                        await _loadUsageStats();
+                        await _loadAllData();
                       },
                     ),
                   ),
@@ -797,7 +768,6 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header row: title + average
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -808,16 +778,7 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
                 fontWeight: FontWeight.w700,
               ),
             ),
-            if (_isLoadingAverage)
-              SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(
-                  strokeWidth: 1.5,
-                  color: theme.colorScheme.primary,
-                ),
-              )
-            else if (_averageDailyMs > 0)
+            if (_averageDailyMs > 0)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -840,19 +801,13 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
         ),
         const SizedBox(height: 10),
 
-        // Chart card
         Material(
           color: theme.colorScheme.secondaryContainer.withOpacity(0.5),
           borderRadius: BorderRadius.circular(20),
           clipBehavior: Clip.antiAlias,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
-            child: _isLoadingWeekly
-                ? const SizedBox(
-                    height: 120,
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                : _buildWeeklyBarChart(theme),
+            child: _buildWeeklyBarChart(theme),
           ),
         ),
       ],
@@ -912,7 +867,6 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  // Duration label above bar
                   SizedBox(
                     height: 18,
                     child: !isEmpty
@@ -931,7 +885,6 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
                   ),
                   const SizedBox(height: 3),
 
-                  // Bar
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 350),
                     curve: Curves.easeOut,
@@ -955,7 +908,6 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
                   ),
                   const SizedBox(height: 6),
 
-                  // Weekday label
                   Text(
                     _weekdayShort(day.weekday),
                     style: theme.textTheme.labelSmall?.copyWith(
@@ -967,7 +919,6 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
                     ),
                   ),
 
-                  // Small dot under today's column
                   SizedBox(
                     height: 6,
                     child: isToday
@@ -1054,7 +1005,6 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
     );
   }
 
-  /// Shown when the selected day has no app data but other days do.
   Widget _buildEmptyDayState() {
     final theme = Theme.of(context);
     return Padding(
@@ -1093,7 +1043,6 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
     );
   }
 
-  /// Shown when there is absolutely no data at all.
   Widget _buildEmptyState() {
     final theme = Theme.of(context);
     return Center(

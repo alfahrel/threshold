@@ -219,32 +219,27 @@ class UsageStatsHelper {
     return results;
   }
 
-  /// Returns average daily usage in ms across all days that have any data,
-  /// from the earliest available timestamp up to today.
+  /// Returns average daily usage in ms across the last 14 days that have data.
+  /// Capped at 14 days because queryEvents (our data source) only retains ~14 days.
   static Future<int> getAverageDailyUsage() async {
     final now = DateTime.now();
-    final earliestTs = await getEarliestDataTimestamp();
-    if (earliestTs == null) return 0;
+    const int lookbackDays = 14;
 
-    final earliestDate = DateTime.fromMillisecondsSinceEpoch(earliestTs);
     int totalDays = 0;
     int totalMs = 0;
 
-    DateTime cursor = DateTime(
-      earliestDate.year,
-      earliestDate.month,
-      earliestDate.day,
-    );
-    final today = DateTime(now.year, now.month, now.day);
-
-    while (!cursor.isAfter(today)) {
-      final stats = await getStatsByDate(cursor);
+    for (int i = lookbackDays - 1; i >= 0; i--) {
+      final date = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(Duration(days: i));
+      final stats = await getStatsByDate(date);
       final dayTotal = stats.fold<int>(0, (sum, s) => sum + s.totalTime);
       if (dayTotal > 0) {
         totalMs += dayTotal;
         totalDays++;
       }
-      cursor = cursor.add(const Duration(days: 1));
     }
 
     return totalDays > 0 ? totalMs ~/ totalDays : 0;

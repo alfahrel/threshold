@@ -191,91 +191,59 @@ class MainActivity: FlutterActivity() {
             val ignoredPackages = prefs.getStringSet("ignored_packages", setOf()) ?: setOf()
             val launcherPackage = getDefaultLauncherPackage()
 
-            val stats = usageStatsManager.queryUsageStats(
-                UsageStatsManager.INTERVAL_DAILY,
-                start,
-                end
-            )
+            val totalTimes = mutableMapOf<String, Long>()
+            val sessionStarts = mutableMapOf<String, MutableList<Long>>()
+            val sessionDurations = mutableMapOf<String, MutableList<Long>>()
+            val lastForeground = mutableMapOf<String, Long>()
 
-            if (stats == null || stats.isEmpty()) return emptyList()
+            val events = usageStatsManager.queryEvents(start, end)
 
-            val aggregatedStats = mutableMapOf<String, MutableMap<String, Any>>()
+            while (events.hasNextEvent()) {
+                val event = android.app.usage.UsageEvents.Event()
+                events.getNextEvent(event)
 
-            for (stat in stats) {
-                if (stat.totalTimeInForeground > 0) {
-                    val packageName = stat.packageName
-                    if (packageName in ignoredPackages ||
-                        packageName == launcherPackage ||
-                        packageName == "com.alfahrel.threshold") continue
+                val pkg = event.packageName
+                if (pkg in ignoredPackages || pkg == launcherPackage || pkg == "com.alfahrel.threshold") continue
 
-                    if (aggregatedStats.containsKey(packageName)) {
-                        val existing = aggregatedStats[packageName]!!
-                        val totalTime = existing["totalTime"] as Long
-                        existing["totalTime"] = totalTime + stat.totalTimeInForeground
-                    } else {
-                        aggregatedStats[packageName] = mutableMapOf(
-                            "packageName" to packageName,
-                            "totalTime" to stat.totalTimeInForeground,
-                            "startTimes" to mutableListOf<Long>(),
-                            "sessionDurations" to mutableListOf<Long>()
-                        )
+                when (event.eventType) {
+                    android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                        // Cap the foreground start to the window start, not before it
+                        lastForeground[pkg] = maxOf(event.timeStamp, start)
+                        sessionStarts.getOrPut(pkg) { mutableListOf() }.add(maxOf(event.timeStamp, start))
+                        sessionDurations.getOrPut(pkg) { mutableListOf() }.add(-1L)
+                    }
+                    android.app.usage.UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+                        val fgTime = lastForeground[pkg] ?: continue
+                        // Cap the background end to the window end
+                        val duration = minOf(event.timeStamp, end) - fgTime
+                        if (duration > 0) {
+                            totalTimes[pkg] = (totalTimes[pkg] ?: 0L) + duration
+                            val durations = sessionDurations[pkg]
+                            if (!durations.isNullOrEmpty()) durations[durations.size - 1] = duration
+                        }
+                        lastForeground.remove(pkg)
                     }
                 }
             }
 
-            try {
-                val events = usageStatsManager.queryEvents(start, end)
-                val sessionStarts = mutableMapOf<String, MutableList<Long>>()
-                val sessionDurations = mutableMapOf<String, MutableList<Long>>()
-                val lastForeground = mutableMapOf<String, Long>()
-
-                while (events.hasNextEvent()) {
-                    val event = android.app.usage.UsageEvents.Event()
-                    events.getNextEvent(event)
-
-                    when (event.eventType) {
-                        android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND -> {
-                            lastForeground[event.packageName] = event.timeStamp
-                            sessionStarts.getOrPut(event.packageName) { mutableListOf<Long>() }
-                                .add(event.timeStamp)
-                            sessionDurations.getOrPut(event.packageName) { mutableListOf<Long>() }
-                                .add(-1L)
-                        }
-                        android.app.usage.UsageEvents.Event.MOVE_TO_BACKGROUND -> {
-                            val fgTime = lastForeground[event.packageName]
-                            if (fgTime != null) {
-                                val duration = event.timeStamp - fgTime
-                                val durations = sessionDurations[event.packageName]
-                                if (durations != null && durations.isNotEmpty()) {
-                                    durations[durations.size - 1] = duration
-                                }
-                                lastForeground.remove(event.packageName)
-                            }
-                        }
-                    }
-                }
-
-                // Handle sessions still in foreground (app currently open)
-                val now = System.currentTimeMillis()
-                for ((pkg, fgTime) in lastForeground) {
+            // Handle apps still in foreground at the END of the query window (not now)
+            for ((pkg, fgTime) in lastForeground) {
+                val duration = end - fgTime  // capped at window end, not System.currentTimeMillis()
+                if (duration > 0) {
+                    totalTimes[pkg] = (totalTimes[pkg] ?: 0L) + duration
                     val durations = sessionDurations[pkg]
-                    if (durations != null && durations.isNotEmpty()) {
-                        durations[durations.size - 1] = now - fgTime
-                    }
+                    if (!durations.isNullOrEmpty()) durations[durations.size - 1] = duration
                 }
-
-                for ((packageName, starts) in sessionStarts) {
-                    if (aggregatedStats.containsKey(packageName)) {
-                        aggregatedStats[packageName]!!["startTimes"] = starts
-                        aggregatedStats[packageName]!!["sessionDurations"] =
-                            sessionDurations[packageName] ?: mutableListOf<Long>()
-                    }
-                }
-            } catch (e: Exception) {
-                // ignored
             }
 
-            return aggregatedStats.values.toList()
+            return totalTimes.map { (pkg, total) ->
+                mutableMapOf<String, Any>(
+                    "packageName" to pkg,
+                    "totalTime" to total,
+                    "startTimes" to (sessionStarts[pkg] ?: mutableListOf<Long>()),
+                    "sessionDurations" to (sessionDurations[pkg] ?: mutableListOf<Long>())
+                )
+            }
 
         } catch (e: Exception) {
             return emptyList()

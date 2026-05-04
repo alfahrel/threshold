@@ -3,8 +3,6 @@ package com.alfahrel.threshold
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
-import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
@@ -12,16 +10,19 @@ import android.os.Build
 import android.os.Bundle
 import android.widget.RemoteViews
 import android.app.usage.UsageStatsManager
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import es.antonborri.home_widget.HomeWidgetPlugin
 import org.json.JSONArray
+import java.util.Calendar
 
 class UsageStatsWidget : AppWidgetProvider() {
 
     companion object {
         private const val ACTION_REFRESH = "com.alfahrel.threshold.REFRESH_WIDGET"
         private const val ACTION_OPEN_APP = "com.alfahrel.threshold.OPEN_APP"
-        private const val MIN_USAGE_TIME = 0L
     }
 
     override fun onUpdate(
@@ -49,23 +50,14 @@ class UsageStatsWidget : AppWidgetProvider() {
             Intent.ACTION_CONFIGURATION_CHANGED -> {
                 val appWidgetManager = AppWidgetManager.getInstance(context)
                 val ids = appWidgetManager.getAppWidgetIds(
-                    android.content.ComponentName(context, UsageStatsWidget::class.java)
+                    ComponentName(context, UsageStatsWidget::class.java)
                 )
                 onUpdate(context, appWidgetManager, ids)
             }
             ACTION_REFRESH -> {
-                // THE TOAST IS NOT SHOWING
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    android.widget.Toast.makeText(
-                        context.applicationContext,
-                        "Refreshing...",
-                        android.widget.Toast.LENGTH_SHORT
-                    ).show()
-                }
-
                 val appWidgetManager = AppWidgetManager.getInstance(context)
                 val appWidgetIds = appWidgetManager.getAppWidgetIds(
-                    android.content.ComponentName(context, UsageStatsWidget::class.java)
+                    ComponentName(context, UsageStatsWidget::class.java)
                 )
                 onUpdate(context, appWidgetManager, appWidgetIds)
             }
@@ -120,32 +112,13 @@ class UsageStatsWidget : AppWidgetProvider() {
         views.setTextViewText(R.id.total_time, formatTime(usageData.totalTime))
 
         if (!isSmall) {
-            if (usageData.topApps.isNotEmpty()) {
-                updateAppItem(context, views, usageData.topApps[0], 1)
-                views.setInt(R.id.app1_container, "setVisibility", android.view.View.VISIBLE)
-            } else {
-                views.setInt(R.id.app1_container, "setVisibility", android.view.View.GONE)
-            }
-
-            if (usageData.topApps.size > 1) {
-                updateAppItem(context, views, usageData.topApps[1], 2)
-                views.setInt(R.id.app2_container, "setVisibility", android.view.View.VISIBLE)
-            } else {
-                views.setInt(R.id.app2_container, "setVisibility", android.view.View.GONE)
-            }
-
-            if (usageData.topApps.size > 2) {
-                updateAppItem(context, views, usageData.topApps[2], 3)
-                views.setInt(R.id.app3_container, "setVisibility", android.view.View.VISIBLE)
-            } else {
-                views.setInt(R.id.app3_container, "setVisibility", android.view.View.GONE)
-            }
-
-            if (usageData.topApps.size > 3) {
-                updateAppItem(context, views, usageData.topApps[3], 4)
-                views.setInt(R.id.app4_container, "setVisibility", android.view.View.VISIBLE)
-            } else {
-                views.setInt(R.id.app4_container, "setVisibility", android.view.View.GONE)
+            val containers = listOf(R.id.app1_container, R.id.app2_container, R.id.app3_container, R.id.app4_container)
+            for (i in containers.indices) {
+                views.setInt(containers[i], "setVisibility",
+                    if (i < usageData.topApps.size) android.view.View.VISIBLE else android.view.View.GONE)
+                if (i < usageData.topApps.size) {
+                    updateAppItem(context, views, usageData.topApps[i], i + 1)
+                }
             }
         }
 
@@ -207,61 +180,72 @@ class UsageStatsWidget : AppWidgetProvider() {
 
     private fun getUsageStats(context: Context): UsageData {
         try {
-            val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE)
-                as UsageStatsManager
-
+            val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
             val ignoredPackages = getIgnoredPackages(context)
             val launcherPackage = getDefaultLauncherPackage(context)
 
-            val calendar = java.util.Calendar.getInstance()
-            calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
-            calendar.set(java.util.Calendar.MINUTE, 0)
-            calendar.set(java.util.Calendar.SECOND, 0)
+            val calendar = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
             val start = calendar.timeInMillis
             val end = System.currentTimeMillis()
 
-            val stats = usageStatsManager.queryUsageStats(
-                UsageStatsManager.INTERVAL_DAILY,
-                start,
-                end
-            )
+            val totalTimes = mutableMapOf<String, Long>()
+            val lastForeground = mutableMapOf<String, Long>()
 
-            if (stats.isNullOrEmpty()) {
-                android.util.Log.w("UsageWidget", "No stats returned — usage access permission likely not granted")
-                return UsageData(0L, emptyList())
-            }
+            val events = usageStatsManager.queryEvents(start, end)
 
-            val appMap = mutableMapOf<String, Long>()
-            var totalTimeFiltered = 0L
+            while (events.hasNextEvent()) {
+                val event = android.app.usage.UsageEvents.Event()
+                events.getNextEvent(event)
 
-            for (stat in stats) {
-                when {
-                    stat.packageName in ignoredPackages -> {}
-                    stat.packageName == launcherPackage -> {}
-                    stat.packageName == "com.alfahrel.threshold" -> {}
-                    stat.totalTimeInForeground < MIN_USAGE_TIME -> {}
-                    else -> {
-                        totalTimeFiltered += stat.totalTimeInForeground
-                        val existing = appMap[stat.packageName] ?: 0L
-                        appMap[stat.packageName] = existing + stat.totalTimeInForeground
+                val pkg = event.packageName
+                if (pkg in ignoredPackages || pkg == launcherPackage || pkg == "com.alfahrel.threshold") continue
+
+                when (event.eventType) {
+                    android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                        // Clamp to midnight so sessions started before today
+                        // don't bleed yesterday's time into today's count
+                        lastForeground[pkg] = maxOf(event.timeStamp, start)
+                    }
+                    android.app.usage.UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+                        val fgTime = lastForeground[pkg] ?: continue
+                        val duration = event.timeStamp - fgTime
+                        if (duration > 0) {
+                            totalTimes[pkg] = (totalTimes[pkg] ?: 0L) + duration
+                        }
+                        lastForeground.remove(pkg)
                     }
                 }
             }
 
-            val topApps = appMap.entries
+            // Handle apps still in foreground right now
+            for ((pkg, fgTime) in lastForeground) {
+                val duration = end - fgTime
+                if (duration > 0) {
+                    totalTimes[pkg] = (totalTimes[pkg] ?: 0L) + duration
+                }
+            }
+
+            val totalTimeFiltered = totalTimes.values.fold(0L) { sum, t -> sum + t }
+
+            val topApps = totalTimes.entries
                 .sortedByDescending { it.value }
                 .take(4)
-                .mapNotNull { entry ->
+                .mapNotNull { (pkg, time) ->
                     try {
                         val pm = context.packageManager
                         val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            pm.getApplicationInfo(entry.key, PackageManager.ApplicationInfoFlags.of(0))
+                            pm.getApplicationInfo(pkg, PackageManager.ApplicationInfoFlags.of(0))
                         } else {
                             @Suppress("DEPRECATION")
-                            pm.getApplicationInfo(entry.key, 0)
+                            pm.getApplicationInfo(pkg, 0)
                         }
                         val appName = pm.getApplicationLabel(appInfo).toString()
-                        AppInfo(entry.key, appName, entry.value)
+                        AppInfo(pkg, appName, time)
                     } catch (e: Exception) {
                         null
                     }
@@ -277,8 +261,7 @@ class UsageStatsWidget : AppWidgetProvider() {
 
     private fun getDefaultLauncherPackage(context: Context): String? {
         return try {
-            val intent = Intent(Intent.ACTION_MAIN)
-            intent.addCategory(Intent.CATEGORY_HOME)
+            val intent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_HOME) }
             val resolveInfo = context.packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
             resolveInfo?.activityInfo?.packageName
         } catch (e: Exception) {
@@ -298,9 +281,7 @@ class UsageStatsWidget : AppWidgetProvider() {
     }
 
     private fun drawableToBitmap(drawable: android.graphics.drawable.Drawable): Bitmap {
-        if (drawable is BitmapDrawable && drawable.bitmap != null) {
-            return drawable.bitmap
-        }
+        if (drawable is BitmapDrawable && drawable.bitmap != null) return drawable.bitmap
         val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 96
         val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else 96
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)

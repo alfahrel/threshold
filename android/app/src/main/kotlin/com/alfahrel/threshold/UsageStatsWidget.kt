@@ -112,16 +112,25 @@ class UsageStatsWidget : AppWidgetProvider() {
         views.setTextViewText(R.id.total_time, formatTime(usageData.totalTime))
 
         if (!isSmall) {
-            val containers = listOf(R.id.app1_container, R.id.app2_container, R.id.app3_container, R.id.app4_container)
+            val containers = listOf(
+                R.id.app1_container,
+                R.id.app2_container,
+                R.id.app3_container
+            )
             for (i in containers.indices) {
-                views.setInt(containers[i], "setVisibility",
-                    if (i < usageData.topApps.size) android.view.View.VISIBLE else android.view.View.GONE)
-                if (i < usageData.topApps.size) {
+                val visible = i < usageData.topApps.size
+                views.setInt(
+                    containers[i], "setVisibility",
+                    if (visible) android.view.View.VISIBLE else android.view.View.GONE
+                )
+                if (visible) {
                     updateAppItem(context, views, usageData.topApps[i], i + 1)
                 }
             }
+
         }
 
+        // Refresh button
         val refreshIntent = Intent(context, UsageStatsWidget::class.java).apply {
             action = ACTION_REFRESH
         }
@@ -131,6 +140,7 @@ class UsageStatsWidget : AppWidgetProvider() {
         )
         views.setOnClickPendingIntent(R.id.refresh_button, refreshPendingIntent)
 
+        // Tap widget to open app
         val openAppIntent = Intent(context, UsageStatsWidget::class.java).apply {
             action = ACTION_OPEN_APP
         }
@@ -150,20 +160,17 @@ class UsageStatsWidget : AppWidgetProvider() {
         val nameId = when (position) {
             1 -> R.id.app1_name
             2 -> R.id.app2_name
-            3 -> R.id.app3_name
-            else -> R.id.app4_name
+            else -> R.id.app3_name
         }
         val timeId = when (position) {
             1 -> R.id.app1_time
             2 -> R.id.app2_time
-            3 -> R.id.app3_time
-            else -> R.id.app4_time
+            else -> R.id.app3_time
         }
         val iconId = when (position) {
             1 -> R.id.app1_icon
             2 -> R.id.app2_icon
-            3 -> R.id.app3_icon
-            else -> R.id.app4_icon
+            else -> R.id.app3_icon
         }
 
         views.setTextViewText(nameId, app.name)
@@ -207,8 +214,6 @@ class UsageStatsWidget : AppWidgetProvider() {
 
                 when (event.eventType) {
                     android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND -> {
-                        // Clamp to midnight so sessions started before today
-                        // don't bleed yesterday's time into today's count
                         lastForeground[pkg] = maxOf(event.timeStamp, start)
                     }
                     android.app.usage.UsageEvents.Event.MOVE_TO_BACKGROUND -> {
@@ -222,7 +227,6 @@ class UsageStatsWidget : AppWidgetProvider() {
                 }
             }
 
-            // Handle apps still in foreground right now
             for ((pkg, fgTime) in lastForeground) {
                 val duration = end - fgTime
                 if (duration > 0) {
@@ -234,7 +238,7 @@ class UsageStatsWidget : AppWidgetProvider() {
 
             val topApps = totalTimes.entries
                 .sortedByDescending { it.value }
-                .take(4)
+                .take(3)
                 .mapNotNull { (pkg, time) ->
                     try {
                         val pm = context.packageManager

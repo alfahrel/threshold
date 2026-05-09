@@ -8,12 +8,13 @@
   android:padding="16dp"
   android:background="@drawable/widget_background"
 >
+  <!-- Header -->
   <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:layout_marginBottom="12dp"
+    android:layout_marginBottom="4dp"
   >
     <TextView
       android:id="@+id/widget_title"
@@ -21,48 +22,62 @@
       android:layout_height="wrap_content"
       android:layout_weight="1"
       android:text="Screen Time"
-      android:textSize="13sp"
+      android:textSize="12sp"
       android:textStyle="bold"
       android:textColor="@color/widget_text_secondary"
       android:letterSpacing="0.05"
     />
-    <ImageButton
+    <LinearLayout
       android:id="@+id/refresh_button"
-      android:layout_width="20dp"
-      android:layout_height="20dp"
-      android:src="@drawable/ic_refresh"
-      android:background="?android:attr/selectableItemBackgroundBorderless"
-      android:contentDescription="Refresh"
-      android:scaleType="fitCenter"
-      android:tint="@color/widget_text_secondary"
-    />
+      android:layout_width="wrap_content"
+      android:layout_height="28dp"
+      android:orientation="horizontal"
+      android:gravity="center"
+      android:paddingStart="10dp"
+      android:paddingEnd="10dp"
+      android:background="@drawable/widget_chip_background"
+    >
+      <ImageView
+        android:layout_width="12dp"
+        android:layout_height="12dp"
+        android:src="@drawable/ic_refresh"
+        android:scaleType="fitCenter"
+        android:tint="@color/widget_text_secondary"
+      />
+    </LinearLayout>
   </LinearLayout>
 
+  <!-- Total time -->
   <TextView
     android:id="@+id/total_time"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:text="0h 0m"
-    android:textSize="32sp"
+    android:textSize="34sp"
     android:textStyle="bold"
     android:textColor="@color/widget_text_primary"
-    android:layout_marginBottom="16dp"
+    android:layout_marginBottom="12dp"
     android:letterSpacing="-0.02"
   />
 
+  <!-- App 1 -->
   <LinearLayout
     android:id="@+id/app1_container"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingTop="5dp"
-    android:paddingBottom="5dp"
+    android:paddingStart="10dp"
+    android:paddingEnd="10dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
+    android:layout_marginBottom="6dp"
+    android:background="@drawable/widget_card_background"
   >
     <ImageView
       android:id="@+id/app1_icon"
-      android:layout_width="26dp"
-      android:layout_height="26dp"
+      android:layout_width="28dp"
+      android:layout_height="28dp"
       android:src="@android:drawable/sym_def_app_icon"
     />
     <TextView
@@ -83,24 +98,29 @@
       android:layout_height="wrap_content"
       android:text="0m"
       android:textSize="12sp"
+      android:textStyle="bold"
       android:textColor="@color/widget_text_secondary"
-      android:layout_marginStart="8dp"
     />
   </LinearLayout>
 
+  <!-- App 2 -->
   <LinearLayout
     android:id="@+id/app2_container"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingTop="5dp"
-    android:paddingBottom="5dp"
+    android:paddingStart="10dp"
+    android:paddingEnd="10dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
+    android:layout_marginBottom="6dp"
+    android:background="@drawable/widget_card_background"
   >
     <ImageView
       android:id="@+id/app2_icon"
-      android:layout_width="26dp"
-      android:layout_height="26dp"
+      android:layout_width="28dp"
+      android:layout_height="28dp"
       android:src="@android:drawable/sym_def_app_icon"
     />
     <TextView
@@ -121,24 +141,28 @@
       android:layout_height="wrap_content"
       android:text="0m"
       android:textSize="12sp"
+      android:textStyle="bold"
       android:textColor="@color/widget_text_secondary"
-      android:layout_marginStart="8dp"
     />
   </LinearLayout>
 
+  <!-- App 3 -->
   <LinearLayout
     android:id="@+id/app3_container"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingTop="5dp"
-    android:paddingBottom="5dp"
+    android:paddingStart="10dp"
+    android:paddingEnd="10dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
+    android:background="@drawable/widget_card_background"
   >
     <ImageView
       android:id="@+id/app3_icon"
-      android:layout_width="26dp"
-      android:layout_height="26dp"
+      android:layout_width="28dp"
+      android:layout_height="28dp"
       android:src="@android:drawable/sym_def_app_icon"
     />
     <TextView
@@ -159,46 +183,8 @@
       android:layout_height="wrap_content"
       android:text="0m"
       android:textSize="12sp"
+      android:textStyle="bold"
       android:textColor="@color/widget_text_secondary"
-      android:layout_marginStart="8dp"
-    />
-  </LinearLayout>
-
-  <LinearLayout
-    android:id="@+id/app4_container"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:gravity="center_vertical"
-    android:paddingTop="5dp"
-    android:paddingBottom="5dp"
-  >
-    <ImageView
-      android:id="@+id/app4_icon"
-      android:layout_width="26dp"
-      android:layout_height="26dp"
-      android:src="@android:drawable/sym_def_app_icon"
-    />
-    <TextView
-      android:id="@+id/app4_name"
-      android:layout_width="0dp"
-      android:layout_height="wrap_content"
-      android:layout_weight="1"
-      android:layout_marginStart="10dp"
-      android:text="App 4"
-      android:textSize="13sp"
-      android:textColor="@color/widget_text_primary"
-      android:maxLines="1"
-      android:ellipsize="end"
-    />
-    <TextView
-      android:id="@+id/app4_time"
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:text="0m"
-      android:textSize="12sp"
-      android:textColor="@color/widget_text_secondary"
-      android:layout_marginStart="8dp"
     />
   </LinearLayout>
 </LinearLayout>

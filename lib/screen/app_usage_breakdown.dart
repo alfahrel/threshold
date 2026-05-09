@@ -680,23 +680,13 @@ class _AppUsageBreakdownScreenState extends State<AppUsageBreakdownScreen> {
 
                         // Bar itself
                         AnimatedContainer(
-                          duration: const Duration(milliseconds: 450),
+                          duration: const Duration(milliseconds: 350),
                           curve: Curves.easeOut,
                           height: barH,
-                          width: barWidth - 10,
+                          width: barWidth - 3,
                           decoration: BoxDecoration(
                             color: barColor,
-                            borderRadius: BorderRadius.circular(5),
-                            boxShadow: isCurrent && !isEmpty
-                                ? [
-                                    BoxShadow(
-                                      color: theme.colorScheme.primary
-                                          .withOpacity(0.35),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ]
-                                : null,
+                            borderRadius: BorderRadius.circular(30),
                           ),
                         ),
                         const SizedBox(height: 6),

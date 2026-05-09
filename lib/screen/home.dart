@@ -156,11 +156,13 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
               .toList()
             ..sort((a, b) => b.totalTime.compareTo(a.totalTime));
 
-      for (final stat in stats) {
-        _appInfoCache[stat.packageName] ??= await AppInfoCache.getAppInfo(
-          stat.packageName,
-        );
-      }
+      await Future.wait(
+        stats.map((stat) async {
+          _appInfoCache[stat.packageName] ??= await AppInfoCache.getAppInfo(
+            stat.packageName,
+          );
+        }),
+      );
 
       setState(() {
         _stats = stats;
@@ -703,7 +705,7 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
               delegate: SliverChildBuilderDelegate((context, index) {
                 final stat = _stats[index];
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.only(bottom: 3),
                   child: AppUsageItem(
                     stat: stat,
                     appInfo: _appInfoCache[stat.packageName],
@@ -889,21 +891,10 @@ class _UsageStatsHomeState extends State<UsageStatsHome>
                     duration: const Duration(milliseconds: 350),
                     curve: Curves.easeOut,
                     height: barH,
-                    width: itemWidth - 12,
+                    width: itemWidth - 3,
                     decoration: BoxDecoration(
                       color: barColor,
-                      borderRadius: BorderRadius.circular(6),
-                      boxShadow: isSelected && !isEmpty
-                          ? [
-                              BoxShadow(
-                                color: theme.colorScheme.primary.withOpacity(
-                                  0.35,
-                                ),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ]
-                          : null,
+                      borderRadius: BorderRadius.circular(30),
                     ),
                   ),
                   const SizedBox(height: 6),

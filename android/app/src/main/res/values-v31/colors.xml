@@ -53,4 +53,8 @@
   <!-- Scrim & Shadow -->
   <color name="widget_scrim">@android:color/system_neutral1_1000</color>
   <color name="widget_shadow">@android:color/system_neutral1_1000</color>
+
+  <color name="widget_text_primary">@android:color/system_neutral1_900</color>
+  <color name="widget_text_secondary">@android:color/system_neutral2_600</color>
+  <color name="widget_divider">#22000000</color>
 </resources>

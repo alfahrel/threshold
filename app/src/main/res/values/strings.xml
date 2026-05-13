@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Threshold</string>
+    <string name="accessibility_service_description">Monitors app usage to enforce time limits</string>
+    <string name="widget_description">Shows your daily app usage stats</string>
+</resources>

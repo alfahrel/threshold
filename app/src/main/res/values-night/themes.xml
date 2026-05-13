@@ -1,0 +1,57 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.Threshold" parent="Theme.Material3Expressive.Dark.NoActionBar">
+        <item name="android:fontFamily">@font/poppins</item>
+        <item name="fontFamily">@font/poppins</item>
+
+        <item name="android:navigationBarColor">
+            @android:color/transparent
+        </item>
+
+        <item name="android:statusBarColor">
+            @android:color/transparent
+        </item>
+
+        <item name="android:windowLightStatusBar">
+            false
+        </item>
+    </style>
+
+    <style name="BoldTitle" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:fontFamily">@font/poppins_bold</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="BoldDisplayTitle" parent="TextAppearance.Material3.DisplaySmall">
+        <item name="android:fontFamily">@font/poppins_bold</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="ShapeAppearance.AppUsage.Top" parent="">
+        <item name="cornerSizeTopLeft">33dp</item>
+        <item name="cornerSizeTopRight">33dp</item>
+        <item name="cornerSizeBottomLeft">15dp</item>
+        <item name="cornerSizeBottomRight">15dp</item>
+    </style>
+
+    <style name="ShapeAppearance.AppUsage.Middle" parent="">
+        <item name="cornerSizeTopLeft">15dp</item>
+        <item name="cornerSizeTopRight">15dp</item>
+        <item name="cornerSizeBottomLeft">15dp</item>
+        <item name="cornerSizeBottomRight">15dp</item>
+    </style>
+
+    <style name="ShapeAppearance.AppUsage.Bottom" parent="">
+        <item name="cornerSizeTopLeft">15dp</item>
+        <item name="cornerSizeTopRight">15dp</item>
+        <item name="cornerSizeBottomLeft">33dp</item>
+        <item name="cornerSizeBottomRight">33dp</item>
+    </style>
+
+    <style name="ShapeAppearance.AppUsage.Full" parent="">
+        <item name="cornerSizeTopLeft">33dp</item>
+        <item name="cornerSizeTopRight">33dp</item>
+        <item name="cornerSizeBottomLeft">33dp</item>
+        <item name="cornerSizeBottomRight">33dp</item>
+    </style>
+</resources>

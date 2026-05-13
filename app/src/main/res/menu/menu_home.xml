@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_calendar"
+        android:icon="@drawable/ic_rounded_calendar_today_24"
+        android:title="Select Date"
+        android:contentDescription="Select Date"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_more"
+        android:icon="@drawable/ic_rounded_more_vert_24"
+        android:title="More"
+        android:contentDescription="More options"
+        app:showAsAction="always" />
+
+</menu>

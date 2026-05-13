@@ -264,15 +264,21 @@ class HomeAdapter(
                 true
             }
 
-            card.alpha = 0f
-            card.translationY = 60f
-            card.animate()
-                .alpha(1f)
-                .translationY(0f)
-                .setDuration(300)
-                .setStartDelay((adapterPosition * 50L).coerceAtMost(400L))
-                .setInterpolator(DecelerateInterpolator())
-                .start()
+            if (card.tag != stat.packageName) {
+                card.tag = stat.packageName
+                card.alpha = 0f
+                card.translationY = 40f
+                card.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(200)
+                    .setStartDelay((bindingAdapterPosition * 30L).coerceAtMost(150L))
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
+            } else {
+                card.alpha = 1f
+                card.translationY = 0f
+            }
         }
     }
 

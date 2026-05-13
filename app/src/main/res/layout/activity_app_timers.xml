@@ -19,6 +19,8 @@
             android:layout_height="160dp"
             app:title="App Timers"
             app:layout_scrollFlags="scroll|exitUntilCollapsed|snap"
+            app:collapsedTitleTextAppearance="@style/BoldTitle"
+            app:expandedTitleTextAppearance="@style/BoldDisplayTitle"
             app:expandedTitleMarginStart="16dp"
             app:expandedTitleMarginBottom="16dp">
 

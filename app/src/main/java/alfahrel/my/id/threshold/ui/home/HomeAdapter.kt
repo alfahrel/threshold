@@ -11,6 +11,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
+import android.view.ViewTreeObserver
+import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -33,6 +35,7 @@ class HomeAdapter(
     private var dailyAvgMs: Long = 0L
     private var permissions: UsageRepository.AllPermissions? = null
     private var showNoPermission: Boolean = false
+    private val animatedPackages = mutableSetOf<String>()
 
     fun getAppTimers(): Map<String, Int> = appTimers
 
@@ -61,6 +64,7 @@ class HomeAdapter(
         this.dailyAvgMs = dailyAvgMs
         this.permissions = permissions
         this.showNoPermission = false
+        animatedPackages.clear()
         notifyDataSetChanged()
     }
 
@@ -144,6 +148,7 @@ class HomeAdapter(
                     stat = stat,
                     appInfo = appInfoMap[stat.packageName],
                     hasTimer = appTimers.containsKey(stat.packageName),
+                    animatedPackages = animatedPackages,
                     onClick = { onAppClick(stat) },
                     onLongClick = { onAppLongClick(stat) }
                 )
@@ -160,7 +165,6 @@ class HomeAdapter(
         private val tvDailyAvg: TextView = view.findViewById(R.id.tvDailyAvg)
         private val layoutDailyAvg: View = view.findViewById(R.id.layoutDailyAvg)
         private val weeklyBarChart: WeeklyBarChartView = view.findViewById(R.id.weeklyBarChart)
-        private val tvAppsHeader: TextView = view.findViewById(R.id.tvAppsHeader)
         private val missingPermissionsCard: MaterialCardView =
             view.findViewById(R.id.missingPermissionsCard)
         private val tvMissingPermissionsSubtitle: TextView =
@@ -169,6 +173,7 @@ class HomeAdapter(
             view.findViewById(R.id.missingPermissionsList)
         private val btnGrantPermissions: View = view.findViewById(R.id.btnGrantPermissions)
         private val btnPermissionHelp: View = view.findViewById(R.id.btnPermissionHelp)
+        private val weeklyScrollView: HorizontalScrollView = view.findViewById(R.id.weeklyScrollView)
 
         fun bind(
             selectedDateMs: Long,
@@ -194,8 +199,12 @@ class HomeAdapter(
             }
 
             weeklyBarChart.setData(weeklyStats, selectedDateMs, onDaySelected)
-
-            tvAppsHeader.visibility = if (stats.isNotEmpty()) View.VISIBLE else View.GONE
+            weeklyScrollView.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+                override fun onGlobalLayout() {
+                    weeklyScrollView.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                    weeklyScrollView.scrollTo(weeklyScrollView.getChildAt(0).width, 0)
+                }
+            })
 
             permissions?.let { p ->
                 if (!p.allGranted) {
@@ -209,7 +218,6 @@ class HomeAdapter(
                         if (!p.usageStats) add(Pair("Usage Stats", R.drawable.ic_rounded_bar_chart_24))
                         if (!p.accessibility) add(Pair("Accessibility", R.drawable.ic_rounded_accessibility_24))
                         if (!p.overlay) add(Pair("Display Overlay", R.drawable.ic_rounded_layers_24))
-                        if (!p.deviceAdmin) add(Pair("Device Admin", R.drawable.ic_rounded_admin_panel_settings_24))
                     }
                     missingItems.forEach { (name, iconRes) ->
                         val row = LayoutInflater.from(context)
@@ -241,6 +249,7 @@ class HomeAdapter(
             stat: AppUsageStat,
             appInfo: AppInfo?,
             hasTimer: Boolean,
+            animatedPackages: MutableSet<String>,
             onClick: () -> Unit,
             onLongClick: () -> Unit
         ) {
@@ -264,8 +273,7 @@ class HomeAdapter(
                 true
             }
 
-            if (card.tag != stat.packageName) {
-                card.tag = stat.packageName
+            if (animatedPackages.add(stat.packageName)) {
                 card.alpha = 0f
                 card.translationY = 40f
                 card.animate()

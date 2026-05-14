@@ -27,7 +27,6 @@ class PermissionsStatusSheet(
         bindRow(view, R.id.rowUsageStats, "Usage Stats", permissions.usageStats)
         bindRow(view, R.id.rowAccessibility, "Accessibility", permissions.accessibility)
         bindRow(view, R.id.rowOverlay, "Display Overlay", permissions.overlay)
-        bindRow(view, R.id.rowDeviceAdmin, "Device Admin", permissions.deviceAdmin)
 
         val btnGrantAll = view.findViewById<View>(R.id.btnGrantAll)
         if (permissions.allGranted) {

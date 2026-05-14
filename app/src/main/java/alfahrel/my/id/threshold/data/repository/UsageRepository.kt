@@ -1,12 +1,10 @@
 package alfahrel.my.id.threshold.data.repository
 
-import alfahrel.my.id.threshold.receiver.AdminReceiver
 import alfahrel.my.id.threshold.service.AppBlockerAccessibilityService
 import alfahrel.my.id.threshold.data.model.AppInfo
 import alfahrel.my.id.threshold.data.model.AppUsageStat
 import android.app.Activity
 import android.app.AppOpsManager
-import android.app.admin.DevicePolicyManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.ComponentName
@@ -38,19 +36,17 @@ class UsageRepository(private val context: Context) {
     data class AllPermissions(
         val usageStats: Boolean,
         val accessibility: Boolean,
-        val overlay: Boolean,
-        val deviceAdmin: Boolean
+        val overlay: Boolean
     ) {
-        val allGranted get() = usageStats && accessibility && overlay && deviceAdmin
-        val missingCount get() = listOf(usageStats, accessibility, overlay, deviceAdmin).count { !it }
+        val allGranted get() = usageStats && accessibility && overlay
+        val missingCount get() = listOf(usageStats, accessibility, overlay).count { !it }
     }
 
     suspend fun getAllPermissions(): AllPermissions = withContext(Dispatchers.IO) {
         AllPermissions(
             usageStats = hasUsageStatsPermission(),
             accessibility = hasAccessibilityPermission(),
-            overlay = hasOverlayPermission(),
-            deviceAdmin = hasDeviceAdminPermission()
+            overlay = hasOverlayPermission()
         )
     }
 
@@ -92,12 +88,6 @@ class UsageRepository(private val context: Context) {
 
     fun hasOverlayPermission(): Boolean = Settings.canDrawOverlays(context)
 
-    fun hasDeviceAdminPermission(): Boolean {
-        val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-        val component = ComponentName(context, AdminReceiver::class.java)
-        return dpm.isAdminActive(component)
-    }
-
     fun requestUsageStatsPermission() {
         context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -121,27 +111,12 @@ class UsageRepository(private val context: Context) {
         )
     }
 
-    fun requestDeviceAdminPermission(activity: Activity) {
-        val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
-            putExtra(
-                DevicePolicyManager.EXTRA_DEVICE_ADMIN,
-                ComponentName(context, AdminReceiver::class.java)
-            )
-            putExtra(
-                DevicePolicyManager.EXTRA_ADD_EXPLANATION,
-                "Enable admin to prevent app uninstallation"
-            )
-        }
-        activity.startActivityForResult(intent, 1001)
-    }
-
     suspend fun requestNextMissingPermission(activity: Activity) {
         val p = getAllPermissions()
         when {
             !p.usageStats -> requestUsageStatsPermission()
             !p.accessibility -> requestAccessibilityPermission()
             !p.overlay -> requestOverlayPermission()
-            !p.deviceAdmin -> requestDeviceAdminPermission(activity)
         }
     }
 
@@ -192,7 +167,7 @@ class UsageRepository(private val context: Context) {
                         }
 
                         UsageEvents.Event.MOVE_TO_BACKGROUND -> {
-                            val fgTime = lastForeground[pkg] ?: return@withContext emptyList()
+                            val fgTime = lastForeground[pkg] ?: continue
                             val duration = minOf(event.timeStamp, end) - fgTime
                             if (duration > 0) {
                                 totalTimes[pkg] = (totalTimes[pkg] ?: 0L) + duration
@@ -233,7 +208,7 @@ class UsageRepository(private val context: Context) {
     suspend fun getWeeklyStats(): Map<Long, Long> = withContext(Dispatchers.IO) {
         val result = linkedMapOf<Long, Long>()
         val now = Calendar.getInstance(TimeZone.getDefault())
-        for (i in 6 downTo 0) {
+        for (i in 13 downTo 0) {
             val cal = Calendar.getInstance(TimeZone.getDefault()).apply {
                 timeInMillis = now.timeInMillis
                 add(Calendar.DAY_OF_YEAR, -i)

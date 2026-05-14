@@ -25,6 +25,8 @@ class WeeklyBarChartView @JvmOverloads constructor(
 
     private val sortedDays: List<Long> get() = weeklyStats.keys.sorted()
 
+    private val barItemWidthPx = (52 * resources.displayMetrics.density).toInt()
+
     private var animatedFraction: Float = 0f
     private val animator = ValueAnimator.ofFloat(0f, 1f).apply {
         duration = 350
@@ -58,6 +60,7 @@ class WeeklyBarChartView @JvmOverloads constructor(
         this.onDaySelected = onDaySelected
         animator.cancel()
         animatedFraction = 0f
+        requestLayout()
         animator.start()
     }
 
@@ -66,12 +69,20 @@ class WeeklyBarChartView @JvmOverloads constructor(
         invalidate()
     }
 
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val days = sortedDays.size.coerceAtLeast(14)
+        val desiredWidth = barItemWidthPx * days
+        val desiredHeight = MeasureSpec.getSize(heightMeasureSpec)
+            .takeIf { it > 0 } ?: (140 * resources.displayMetrics.density).toInt()
+        setMeasuredDimension(desiredWidth, desiredHeight)
+    }
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.action != MotionEvent.ACTION_UP) return true
         val days = sortedDays
         if (days.isEmpty()) return true
 
-        val itemWidth = width.toFloat() / days.size
+        val itemWidth = barItemWidthPx.toFloat()
         val index = (event.x / itemWidth).toInt().coerceIn(0, days.size - 1)
         onDaySelected?.invoke(days[index])
         return true
@@ -90,7 +101,7 @@ class WeeklyBarChartView @JvmOverloads constructor(
         val colorOutlineVariant = MaterialColors.getColor(this, R.attr.colorOutlineVariant)
 
         val maxMs = weeklyStats.values.maxOrNull() ?: 1L
-        val itemWidth = width.toFloat() / days.size
+        val itemWidth = barItemWidthPx.toFloat()
         val barMaxHeight = height - 80f
         val barWidth = itemWidth - 12f
         val labelY = height.toFloat() - 16f
@@ -110,12 +121,6 @@ class WeeklyBarChartView @JvmOverloads constructor(
                 4f
             }
             val barH = targetBarH * animatedFraction
-
-            val barColor = when {
-                isSelected -> colorPrimaryVariant
-                isEmpty -> colorOutlineVariant and 0x40FFFFFF.toInt()
-                else -> (colorPrimaryVariant and 0x00FFFFFF) or 0x73000000.toInt()
-            }
 
             barPaint.color = when {
                 isSelected -> colorPrimaryVariant
@@ -147,9 +152,7 @@ class WeeklyBarChartView @JvmOverloads constructor(
     }
 
     private fun drawEmpty(canvas: Canvas) {
-        val colorOnSurfaceVariant = MaterialColors.getColor(
-            this, R.attr.colorOnSurfaceVariant
-        )
+        val colorOnSurfaceVariant = MaterialColors.getColor(this, R.attr.colorOnSurfaceVariant)
         labelPaint.color = colorOnSurfaceVariant
         canvas.drawText("No data available", width / 2f, height / 2f, labelPaint)
     }

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/widget_primary">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="32dp">
+
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Time's Up"
+            android:textSize="32sp"
+            android:textStyle="bold"
+            android:textColor="@color/widget_on_primary"
+            android:gravity="center"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/tvMessage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="15sp"
+            android:textColor="@color/widget_on_primary"
+            android:gravity="center"
+            android:layout_marginBottom="48dp" />
+
+        <FrameLayout
+            android:layout_width="330dp"
+            android:layout_height="330dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="48dp">
+
+            <View
+                android:id="@+id/breatheOuter"
+                android:layout_width="273dp"
+                android:layout_height="273dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_breathe_circle_outer" />
+
+            <View
+                android:id="@+id/breatheMiddle"
+                android:layout_width="173dp"
+                android:layout_height="173dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_breathe_circle_middle" />
+
+            <View
+                android:id="@+id/breatheInner"
+                android:layout_width="133dp"
+                android:layout_height="133dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_breathe_circle_inner" />
+
+            <TextView
+                android:id="@+id/tvBreathe"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="Breathe"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/widget_on_primary" />
+
+        </FrameLayout>
+
+        <Button
+            android:id="@+id/btnOk"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="I'm Done"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/widget_on_primary_container"
+            android:backgroundTint="@color/widget_primary_container"
+            android:stateListAnimator="@null" />
+
+    </LinearLayout>
+
+</FrameLayout>

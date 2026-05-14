@@ -49,6 +49,14 @@
         <activity android:name=".ui.settings.IgnoredAppsActivity" />
         <activity android:name=".ui.settings.AppTimersActivity" />
 
+        <activity
+            android:name=".ui.widget.BlockActivity"
+            android:exported="false"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.Threshold.Fullscreen" />
+
         <service
             android:name=".service.AppBlockerAccessibilityService"
             android:exported="false"
@@ -64,18 +72,6 @@
         <service
             android:name=".service.BlockOverlayService"
             android:exported="false" />
-
-        <receiver
-            android:name=".receiver.AdminReceiver"
-            android:exported="true"
-            android:permission="android.permission.BIND_DEVICE_ADMIN">
-            <meta-data
-                android:name="android.app.device_admin"
-                android:resource="@xml/device_admin" />
-            <intent-filter>
-                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
-            </intent-filter>
-        </receiver>
 
         <receiver
             android:name=".ui.widget.UsageStatsWidget"

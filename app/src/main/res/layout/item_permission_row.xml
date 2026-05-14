@@ -19,6 +19,6 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="10dp"
         android:textAppearance="?attr/textAppearanceBodySmall"
-        android:textColor="?attr/colorOnErrorContainer" />
+        android:textColor="?attr/colorOnSurface" />
 
 </LinearLayout>

@@ -31,7 +31,8 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             app:cardCornerRadius="12dp"
-            app:cardBackgroundColor="?attr/colorPrimaryContainer"
+            app:cardBackgroundColor="?attr/colorSurfaceVariant"
+            app:strokeWidth="0dp"
             app:cardElevation="0dp">
 
             <ImageView
@@ -39,7 +40,7 @@
                 android:layout_height="match_parent"
                 android:padding="10dp"
                 android:src="@drawable/ic_rounded_block_24"
-                app:tint="?attr/colorOnPrimary" />
+                app:tint="?attr/colorOnSurfaceVariant" />
 
         </com.google.android.material.card.MaterialCardView>
 
@@ -68,7 +69,8 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             app:cardCornerRadius="12dp"
-            app:cardBackgroundColor="?attr/colorPrimaryContainer"
+            app:cardBackgroundColor="?attr/colorSurfaceVariant"
+            app:strokeWidth="0dp"
             app:cardElevation="0dp">
 
             <ImageView
@@ -76,7 +78,7 @@
                 android:layout_height="match_parent"
                 android:padding="10dp"
                 android:src="@drawable/ic_rounded_timer_24"
-                app:tint="?attr/colorOnPrimary" />
+                app:tint="?attr/colorOnSurfaceVariant" />
 
         </com.google.android.material.card.MaterialCardView>
 
@@ -105,7 +107,8 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             app:cardCornerRadius="12dp"
-            app:cardBackgroundColor="?attr/colorPrimaryContainer"
+            app:cardBackgroundColor="?attr/colorSurfaceVariant"
+            app:strokeWidth="0dp"
             app:cardElevation="0dp">
 
             <ImageView
@@ -113,7 +116,7 @@
                 android:layout_height="match_parent"
                 android:padding="10dp"
                 android:src="@drawable/ic_rounded_security_24"
-                app:tint="?attr/colorOnPrimary" />
+                app:tint="?attr/colorOnSurfaceVariant" />
 
         </com.google.android.material.card.MaterialCardView>
 
@@ -142,7 +145,8 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             app:cardCornerRadius="12dp"
-            app:cardBackgroundColor="?attr/colorPrimaryContainer"
+            app:cardBackgroundColor="?attr/colorSurfaceVariant"
+            app:strokeWidth="0dp"
             app:cardElevation="0dp">
 
             <ImageView
@@ -150,7 +154,7 @@
                 android:layout_height="match_parent"
                 android:padding="10dp"
                 android:src="@drawable/ic_rounded_info_i_24"
-                app:tint="?attr/colorOnPrimary" />
+                app:tint="?attr/colorOnSurfaceVariant" />
 
         </com.google.android.material.card.MaterialCardView>
 
@@ -179,7 +183,8 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             app:cardCornerRadius="12dp"
-            app:cardBackgroundColor="?attr/colorSurfaceContainerHighest"
+            app:cardBackgroundColor="?attr/colorSurfaceVariant"
+            app:strokeWidth="0dp"
             app:cardElevation="0dp">
 
             <ImageView

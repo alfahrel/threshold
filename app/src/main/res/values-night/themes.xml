@@ -20,11 +20,13 @@
     <style name="BoldTitle" parent="TextAppearance.Material3.TitleLarge">
         <item name="android:fontFamily">@font/poppins_bold</item>
         <item name="android:textStyle">bold</item>
+        <item name="fontFamily">@font/poppins_bold</item>
     </style>
 
     <style name="BoldDisplayTitle" parent="TextAppearance.Material3.DisplaySmall">
         <item name="android:fontFamily">@font/poppins_bold</item>
         <item name="android:textStyle">bold</item>
+        <item name="fontFamily">@font/poppins_bold</item>
     </style>
 
     <style name="ShapeAppearance.AppUsage.Top" parent="">
@@ -53,5 +55,13 @@
         <item name="cornerSizeTopRight">33dp</item>
         <item name="cornerSizeBottomLeft">33dp</item>
         <item name="cornerSizeBottomRight">33dp</item>
+    </style>
+
+    <style name="Theme.Threshold.Fullscreen" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:fontFamily">@font/poppins</item>
+        <item name="fontFamily">@font/poppins</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:statusBarColor">@color/widget_surface_container_lowest</item>
+        <item name="android:navigationBarColor">@color/widget_surface_container_lowest</item>
     </style>
 </resources>

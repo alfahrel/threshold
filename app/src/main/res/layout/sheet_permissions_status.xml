@@ -47,12 +47,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />
 
-        <include
-            android:id="@+id/rowDeviceAdmin"
-            layout="@layout/item_permission_row"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
         <Button
             android:id="@+id/btnGrantAll"
             android:layout_width="match_parent"

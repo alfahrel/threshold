@@ -141,7 +141,7 @@
                             android:layout_width="40dp"
                             android:layout_height="40dp"
                             app:cardCornerRadius="12dp"
-                            app:cardBackgroundColor="?attr/colorPrimaryContainer"
+                            app:cardBackgroundColor="?attr/colorSurface"
                             app:cardElevation="0dp"
                             app:strokeWidth="0dp">
 
@@ -150,7 +150,7 @@
                                 android:layout_height="20dp"
                                 android:layout_gravity="center"
                                 android:src="@drawable/ic_rounded_timelapse_24"
-                                app:tint="?attr/colorOnPrimary" />
+                                app:tint="?attr/colorOnSurfaceVariant" />
 
                         </com.google.android.material.card.MaterialCardView>
 
@@ -175,7 +175,7 @@
                                 android:layout_marginTop="2dp"
                                 android:textAppearance="?attr/textAppearanceTitleSmall"
                                 android:textStyle="bold"
-                                android:textColor="?attr/colorPrimary"
+                                android:textColor="?attr/colorOnSurfaceVariant"
                                 android:maxLines="1"
                                 android:ellipsize="end" />
 
@@ -206,7 +206,7 @@
                             android:layout_width="40dp"
                             android:layout_height="40dp"
                             app:cardCornerRadius="12dp"
-                            app:cardBackgroundColor="?attr/colorPrimaryContainer"
+                            app:cardBackgroundColor="?attr/colorSurface"
                             app:cardElevation="0dp"
                             app:strokeWidth="0dp">
 
@@ -215,7 +215,7 @@
                                 android:layout_height="20dp"
                                 android:layout_gravity="center"
                                 android:src="@drawable/ic_rounded_frame_reload_24"
-                                app:tint="?attr/colorOnPrimary" />
+                                app:tint="?attr/colorOnSurfaceVariant" />
 
                         </com.google.android.material.card.MaterialCardView>
 
@@ -240,7 +240,7 @@
                                 android:layout_marginTop="2dp"
                                 android:textAppearance="?attr/textAppearanceTitleSmall"
                                 android:textStyle="bold"
-                                android:textColor="?attr/colorPrimary"
+                                android:textColor="?attr/colorOnSurfaceVariant"
                                 android:maxLines="1"
                                 android:ellipsize="end" />
 
